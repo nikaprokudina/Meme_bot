@@ -1,4 +1,3 @@
-#Elast
 import telebot
 import random
 import string
@@ -11,6 +10,7 @@ import concurrent.futures
 import os
 import io
 import threading
+import sqlite3
 from threading import Lock
 import asyncio
 from telegram.ext import Updater, CallbackQueryHandler
@@ -38,14 +38,13 @@ messages_ids = {}
 all_combined_images = {}
 blank_table = {} #пустой стол голсования
 chosen_photos = {}
-chosen_memes = {}
+#chosen_memes = {}
 players_hand = {}
 
 
 
 # Создаем блокировку для синхронизации доступа к словарю message_list_of_players
 message_list_lock = threading.Lock()
-
 
 def send_message_to_players(game_code, message):
     players = active_games[game_code]['players']
@@ -64,9 +63,6 @@ def create_players_message(game_code, creator_id):
     with message_list_lock:
         message_list_of_players[game_code] = {}
         message_list_of_players[game_code][creator_id] = message_id
-
-    #active_games[game_code]['players'] = player_list
-    #send_message_to_players(game_code, message)
 
 
 def update_players_message(game_code, new_player_id, creator_name):
@@ -150,6 +146,300 @@ def rules(message):
     markup.add(back_button)
     bot.send_message(player_id, f"ляля тут будут правила", reply_markup=markup)
 
+#sql добавить
+def create_table():
+    connect = sqlite3.connect("db.db")
+    cursor = connect.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      user_id INTEGER,
+                      user_name TEXT,
+                      tarif TEXT
+                   )''')
+    connect.commit()
+def add(user_id, user_name, tarif, expiration_date):
+    create_table()
+    #подключаем нашу базу данных
+    connect = sqlite3.connect("db.db")
+    #курсор для работы с таблицами
+    cursor = connect.cursor()
+    cursor.execute('INSERT INTO subscriptions (user_id, user_name, tarif, expiration_date) VALUES (?, ?, ?, ?)',
+                   (user_id, user_name, tarif, expiration_date))
+    connect.commit()
+
+#смотрим на подписки юзера
+def get_user_subscriptions(user_id):
+    connect = sqlite3.connect("db.db")
+    cursor = connect.cursor()
+
+    cursor.execute('SELECT * FROM subscriptions WHERE user_id = ?', (user_id,))
+    user_subscriptions = cursor.fetchall()
+
+    connect.close()
+    return user_subscriptions
+
+@bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('meme_tarif:'))
+def chose_tarif_meme(callback_query):
+    global all_available_tarifs_memes
+    global nazat_tarifs_memes
+    data = callback_query.data.split(':')
+    player_id = callback_query.from_user.id
+    game_code = data[1]
+    button = int(data[2])
+
+    #удаляем прошлое сообщение
+    message_id = callback_query.message.message_id
+    #bot.delete_message(player_id, message_id)
+    if button not in all_available_tarifs_memes[game_code]:
+        bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
+    else:
+        if button not in nazat_tarifs_memes[game_code]: #кнопка ненажата -> нажата = зеленый
+            nazat_tarifs_memes[game_code].append(button)
+        else: #кнопка была нажата, теперь нет -> белый
+            nazat_tarifs_memes[game_code].remove(button)
+        logos = []
+        for number in range(5): #проходимся по всем кнопкам
+            if number in nazat_tarifs_memes[game_code]: #должна быть зелёной
+                logos.append("🟢️ ")
+            elif number in all_available_tarifs_memes[game_code]: #доступна, но не нажата (белый)
+                logos.append("⚪️ ")
+            else: #замок
+                logos.append("🔒")
+
+        # выбор мемов
+        demo_meme = f"meme_tarif:{game_code}:{0}"
+        base_meme = f"meme_tarif:{game_code}:{1}"
+        cccp_meme = f"meme_tarif:{game_code}:{2}"
+        cats_meme = f"meme_tarif:{game_code}:{3}"
+        neiro_meme = f"meme_tarif:{game_code}:{4}"
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        demo = types.InlineKeyboardButton(f"{logos[0]}Демка (по 10 из всех сетов)", callback_data=demo_meme)
+        base = types.InlineKeyboardButton(f"{logos[1]}База (250 шт.)", callback_data=base_meme)
+        cccp = types.InlineKeyboardButton(f"{logos[2]}СССР (250 шт.)", callback_data=cccp_meme)
+        cats = types.InlineKeyboardButton(f"{logos[3]}Котики (250 шт)", callback_data=cats_meme)
+        neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (250 шт)", callback_data=neiro_meme)
+        markup.row(demo)
+        markup.add(base, cccp, cats, neiro)
+        #bot.send_message(player_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+        '''for i in nazat_tarifs_memes[game_code]:
+            bot.send_message(player_id, str(i))
+        bot.send_message(player_id, "---")'''
+        bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id, text="Приятель, тебе придётся выбрать набор мемов-картинок:",
+                              reply_markup=markup)
+        #bot.edit_message_text(chat_id=player_id, message_id=message_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+
+#ситуации
+@bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('sit_tarif:'))
+def chose_tarif_sit(callback_query):
+    global all_available_tarifs_sit
+    global nazat_tarifs_sit
+    data = callback_query.data.split(':')
+    player_id = callback_query.from_user.id
+    game_code = data[1]
+    button = int(data[2])
+
+    #удаляем прошлое сообщение
+    message_id = callback_query.message.message_id
+    #bot.delete_message(player_id, message_id)
+    if button not in all_available_tarifs_sit[game_code]:
+        bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
+    else:
+        if button not in nazat_tarifs_sit[game_code]: #кнопка ненажата -> нажата = зеленый
+            nazat_tarifs_sit[game_code].append(button)
+        else: #кнопка была нажата, теперь нет -> белый
+            nazat_tarifs_sit[game_code].remove(button)
+        logos = []
+        for number in range(5): #проходимся по всем кнопкам
+            if number in nazat_tarifs_sit[game_code]: #должна быть зелёной
+                logos.append("🟢️ ")
+            elif number in all_available_tarifs_sit[game_code]: #доступна, но не нажата (белый)
+                logos.append("⚪️ ")
+            else: #замок
+                logos.append("🔒")
+
+        # выбор мемов
+        demo_sit = f"sit_tarif:{game_code}:{0}"
+        base_sit = f"sit_tarif:{game_code}:{1}"
+        cccp_sit = f"sit_tarif:{game_code}:{2}"
+        cats_sit = f"sit_tarif:{game_code}:{3}"
+        neiro_sit = f"sit_tarif:{game_code}:{4}"
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        demo = types.InlineKeyboardButton(f"{logos[0]}Демка (по 10 из всех сетов)", callback_data=demo_sit)
+        base = types.InlineKeyboardButton(f"{logos[1]}База (100 шт.)", callback_data=base_sit)
+        cccp = types.InlineKeyboardButton(f"{logos[2]}СССР (100 шт.)", callback_data=cccp_sit)
+        cats = types.InlineKeyboardButton(f"{logos[3]}Котики (100 шт)", callback_data=cats_sit)
+        neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (100 шт)", callback_data=neiro_sit)
+        markup.row(demo)
+        markup.add(base, cccp, cats, neiro)
+        #bot.send_message(player_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+        '''for i in nazat_tarifs_sits[game_code]:
+            bot.send_message(player_id, str(i))
+        bot.send_message(player_id, "---")'''
+        bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id, text=f"И ещё потрудись выбрать карты ситуаций:",
+                              reply_markup=markup)
+        #bot.edit_message_text(chat_id=player_id, message_id=message_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+
+
+#все доступные тарифы meme 0,1,2,3,4
+all_available_tarifs_memes = {}
+nazat_tarifs_memes = {}
+
+all_available_tarifs_sit = {}
+nazat_tarifs_sit = {}
+
+
+#выбор колоды мемов и ситуаций
+def chose_deck_of_cards(player_id, game_code):
+    global all_available_tarifs_memes
+    global nazat_tarifs_memes
+
+    global all_available_tarifs_sit
+    global nazat_tarifs_sit
+    # 0-id, 1-name, 2-tarif, 3-data
+    '''#добавление
+    # Получить текущую дату и время
+    current_datetime = datetime.datetime.now()
+    # Преобразовать текущую дату и время в текстовый формат (строку)
+    current_datetime_text = current_datetime.strftime("%d.%m.%Y %H:%M:%S")
+    # Прибавить месяц
+    one_month_later = current_datetime + datetime.timedelta(days=30)
+
+    # Прибавить день
+    one_day_later = current_datetime + datetime.timedelta(days=1)
+
+    # Прибавить год
+    one_year_later = current_datetime.replace(year=current_datetime.year + 1)
+    # Преобразовать новые даты и время в текстовый формат (строку)
+    one_month_later_text = one_month_later.strftime("%d.%m.%Y %H:%M:%S")
+    one_day_later_text = one_day_later.strftime("%d.%m.%Y %H:%M:%S")
+    one_year_later_text = one_year_later.strftime("%d.%m.%Y %H:%M:%S")
+
+    '''
+    #add(player_id, "sakuharo", "СССР", "10.08.2024 15:30:00")
+    #add(player_id, "sakuharo", "Котики", "10.08.2021 15:30:00")
+    # смотрим на подписки игрока
+    user_subscriptions = get_user_subscriptions(player_id)
+    nazat_tarifs_memes[game_code] = [0]
+    nazat_tarifs_sit[game_code] = [0]
+
+    #все доступные тарифы 0,1,2,3,4
+    all_available_tarifs_memes[game_code] = [0]
+    all_available_tarifs_sit[game_code] = [0]
+
+    # выбор мемов
+    demo_meme = f"meme_tarif:{game_code}:{0}"
+    base_meme = f"meme_tarif:{game_code}:{1}"
+    cccp_meme = f"meme_tarif:{game_code}:{2}"
+    cats_meme = f"meme_tarif:{game_code}:{3}"
+    neiro_meme = f"meme_tarif:{game_code}:{4}"
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    demo = types.InlineKeyboardButton("🟢️ Демка (по 10 из всех сетов)", callback_data=demo_meme)
+    # если подписок вообще нет
+    if not user_subscriptions:
+        base = types.InlineKeyboardButton("🔒База (250 шт.)", callback_data=base_meme)
+        cccp = types.InlineKeyboardButton("🔒СССР (250 шт.)", callback_data=cccp_meme)
+        cats = types.InlineKeyboardButton("🔒Котики (250 шт)", callback_data=cats_meme)
+        neiro = types.InlineKeyboardButton("🔒НЕЙРО (250 шт)", callback_data=neiro_meme)
+    # если есть подписка на что-то
+    else:
+        # Получить текущую дату и время
+        current_datetime = datetime.datetime.now()
+
+        tarifs_and_data = {} #тарифы - ключи, даты-values
+        for raw in user_subscriptions:
+            #добавляем тариф
+            if raw[2] not in tarifs_and_data:
+                tarifs_and_data[raw[2]] = [raw[3]]
+            #если несколь дат, то добавляем и сортируем
+            else:
+                tarifs_and_data[raw[2]].append(raw[3])
+                tarifs_and_data[raw[2]].sort()
+        if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
+            base = types.InlineKeyboardButton("⚪️ База (250 шт.)", callback_data=base_meme)
+            all_available_tarifs_memes[game_code].append(1)
+        else:
+            base = types.InlineKeyboardButton("🔒База (250 шт.)", callback_data=base_meme)
+        if "СССР" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["СССР"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
+            cccp = types.InlineKeyboardButton("⚪️ СССР (250 шт.)", callback_data=cccp_meme)
+            all_available_tarifs_memes[game_code].append(2)
+        else:
+            cccp = types.InlineKeyboardButton("🔒СССР (250 шт.)", callback_data=cccp_meme)
+        if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
+            cats = types.InlineKeyboardButton("⚪️ Котики (250 шт)", callback_data=cats_meme)
+            all_available_tarifs_memes[game_code].append(3)
+        else:
+            cats = types.InlineKeyboardButton("🔒Котики (250 шт)", callback_data=cats_meme)
+        if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
+            neiro = types.InlineKeyboardButton("⚪ НЕЙРО (250 шт)", callback_data=neiro_meme)
+            all_available_tarifs_memes[game_code].append(4)
+        else:
+            neiro = types.InlineKeyboardButton("🔒НЕЙРО (250 шт)", callback_data=neiro_meme)
+    markup.row(demo)
+    markup.add(base, cccp, cats, neiro)
+    message = bot.send_message(player_id, f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+
+
+
+    # выбор ситуаций
+    demo_sit = f"sit_tarif:{game_code}:{0}"
+    base_sit = f"sit_tarif:{game_code}:{1}"
+    cccp_sit = f"sit_tarif:{game_code}:{2}"
+    cats_sit = f"sit_tarif:{game_code}:{3}"
+    neiro_sit = f"sit_tarif:{game_code}:{4}"
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    demo = types.InlineKeyboardButton("🟢️ Демка (по 10 из всех сетов)", callback_data=demo_sit)
+    # если подписок вообще нет
+    if not user_subscriptions:
+        base = types.InlineKeyboardButton("🔒База (100 шт.)", callback_data=base_sit)
+        cccp = types.InlineKeyboardButton("🔒СССР (100 шт.)", callback_data=cccp_sit)
+        cats = types.InlineKeyboardButton("🔒Котики (100 шт.)", callback_data=cats_sit)
+        neiro = types.InlineKeyboardButton("🔒НЕЙРО (100 шт.)", callback_data=neiro_sit)
+    # если есть подписка на что-то
+    else:
+        # Получить текущую дату и время
+        current_datetime = datetime.datetime.now()
+
+        tarifs_and_data = {}  # тарифы - ключи, даты-values
+        for raw in user_subscriptions:
+            # добавляем тариф
+            if raw[2] not in tarifs_and_data:
+                tarifs_and_data[raw[2]] = [raw[3]]
+            # если несколь дат, то добавляем и сортируем
+            else:
+                tarifs_and_data[raw[2]].append(raw[3])
+                tarifs_and_data[raw[2]].sort()
+        if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1],
+                                                                    "%d.%m.%Y %H:%M:%S") > current_datetime:
+            base = types.InlineKeyboardButton("⚪️ База (100 шт.)", callback_data=base_sit)
+            all_available_tarifs_sit[game_code].append(1)
+        else:
+            base = types.InlineKeyboardButton("🔒База (100 шт.)", callback_data=base_sit)
+        if "СССР" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["СССР"][-1],
+                                                                    "%d.%m.%Y %H:%M:%S") > current_datetime:
+            cccp = types.InlineKeyboardButton("⚪️ СССР (100 шт.)", callback_data=cccp_sit)
+            all_available_tarifs_sit[game_code].append(2)
+        else:
+            cccp = types.InlineKeyboardButton("🔒СССР (100 шт.)", callback_data=cccp_sit)
+        if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1],
+                                                                      "%d.%m.%Y %H:%M:%S") > current_datetime:
+            cats = types.InlineKeyboardButton("⚪️ Котики (100 шт.)", callback_data=cats_sit)
+            all_available_tarifs_sit[game_code].append(3)
+        else:
+            cats = types.InlineKeyboardButton("🔒Котики (100 шт.)", callback_data=cats_sit)
+        if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1],
+                                                                     "%d.%m.%Y %H:%M:%S") > current_datetime:
+            neiro = types.InlineKeyboardButton("⚪ НЕЙРО (100 шт.)", callback_data=neiro_sit)
+            all_available_tarifs_sit[game_code].append(4)
+        else:
+            neiro = types.InlineKeyboardButton("🔒НЕЙРО (100 шт.)", callback_data=neiro_sit)
+    markup.row(demo)
+    markup.add(base, cccp, cats, neiro)
+    message2 = bot.send_message(player_id, f"И ещё потрудись выбрать карты ситуаций:", reply_markup=markup)
+    return (message.message_id, message2.message_id)
+
+
+
+
 
 # новая игра
 @bot.callback_query_handler(func=lambda message: message.data == 'new_game')
@@ -169,6 +459,32 @@ def new_game(message):
     id_and_names[game_code] = {}
     id_and_names[game_code][player_id] = pl_name
 
+    # выбор колоды мемов и ситуаций
+    message_id_1,  message_id_2= chose_deck_of_cards(player_id, game_code)
+
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    callback_data_podtverdit = f"podtverdit:{game_code}:{message_id_1}:{message_id_2}"
+    podtverdit_choice = types.InlineKeyboardButton("Готово!", callback_data=callback_data_podtverdit)
+    markup.add(podtverdit_choice)
+    bot.send_message(player_id, "Когда выберешь колоды, жми", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('podtverdit:'))
+def podtverdit_choices(callback_query):
+    data = callback_query.data.split(':')
+    player_id = callback_query.from_user.id
+    game_code = data[1]
+    message_id_1 = data[2]
+    message_id_2 = data[3]
+
+    # удаляем прошлое сообщение
+    message_id = callback_query.message.message_id
+    bot.delete_message(player_id, message_id_1)
+    bot.delete_message(player_id, message_id_2)
+    bot.delete_message(player_id, message_id)
+
+    # генерим все ссылки на все мемы. появляется deck_of_meme_cards, trash_memes
+    generate_meme_links(game_code)
+    generate_sit_links(game_code)
 
     # Отправляем ссылку создателю игры
     message_1 = bot.send_message(player_id, f"Вы создали новую игру! Поделитесь кодом со своими друзьями: {game_code}")
@@ -178,8 +494,9 @@ def new_game(message):
     create_players_message(game_code, creator_id)
     message_id_2 = message_list_of_players[game_code][creator_id]
 
+
     markup = types.InlineKeyboardMarkup(row_width=2)
-    callback_data_start = f"start:{game_code}:{message_id_1}:{message_id_2}"
+    callback_data_start = f"start:{game_code}:{message_id_1}"
     start_game_button = types.InlineKeyboardButton("Начать игру", callback_data=callback_data_start)
     callback_data_drop = f"drop:{game_code}:{message_id_1}:{message_id_2}"
     drop_button = types.InlineKeyboardButton("Назад в меню", callback_data=callback_data_drop)
@@ -245,9 +562,6 @@ def handle_game_code(message):
 
 
 def join_existing_game(player_id, pl_name, game_code):
-    #player_id = message.chat.id
-    #user_id = message.from_user.id
-    #pl_username = message.from_user.username
     players = active_games[game_code]['players']
     game_started = active_games[game_code].get('game_started', False)  # Проверка флага game_started
 
@@ -277,93 +591,191 @@ def start_game(callback_query):
     player_id = callback_query.from_user.id
     game_code = data[1]
     message_id_1 = data[2]
-    message_id_2 = data[3]
-    #удаляем прошлое сообщение
-    message_id = callback_query.message.message_id
-    bot.delete_message(player_id, int(message_id_1))
-    bot.delete_message(player_id, message_id)
-    bot.delete_message(player_id, message_id_2)
+    if len(nazat_tarifs_memes[game_code]) == 0:
+        bot.send_message(player_id, "Нужно выбрать хотябы 1 набор, чтобы начать игру.")
+    else:
+    #message_id_2 = data[3]
 
-    #основное тело
-    chat_id = callback_query.message.chat.id
-    game_code = None
-    for code, game in active_games.items():
-        if game['creator'] == callback_query.from_user.id:
-            game_code = code
-            break
-    if game_code in remember_players:
-        del remember_players[game_code]
-    if game_code:
-        players = active_games[game_code]['players']
-        if len(players) >= 1:  # Проверка количества игроков
-            active_games[game_code]['game_started'] = True
-            send_message_to_players(game_code, "Игра началась!")
-            rating[game_code] = {}
-            for player in players: #добавляем всех в рейтинг
-                rating[game_code][player] = 0
-            if len(players) < 4: #если мало игроков, то добавляем бота
-                rating[game_code]["bot"] = 0
-            players_hand_cards(game_code)
+
+        #основное тело
+        chat_id = callback_query.message.chat.id
+        game_code = None
+        for code, game in active_games.items():
+            if game['creator'] == callback_query.from_user.id:
+                game_code = code
+                break
+        if game_code in remember_players:
+            del remember_players[game_code]
+        if game_code:
+            players = active_games[game_code]['players']
+            if len(players) >= 1:  # Проверка количества игроков
+
+                # удаляем прошлое сообщение
+                message_id = callback_query.message.message_id
+                bot.delete_message(player_id, int(message_id_1))
+                bot.delete_message(player_id, message_id)
+                active_games[game_code]['game_started'] = True
+
+                send_message_to_players(game_code, "Игра началась!")
+                rating[game_code] = {}
+                for player in players: #добавляем всех в рейтинг
+                    rating[game_code][player] = 0
+                if len(players) < 4: #если мало игроков, то добавляем бота
+                    rating[game_code]["bot"] = 0
+                players_hand_cards(game_code)
+
+            else:
+                bot.send_message(chat_id, "Нужно хотя бы 2 игрока, чтобы начать игру.")
 
         else:
-            bot.send_message(chat_id, "Нужно хотя бы 2 игрока, чтобы начать игру.")
-
-    else:
-        bot.send_message(chat_id, "Вы не являетесь создателем игры, поэтому не можете её начать.")
+            bot.send_message(chat_id, "Вы не являетесь создателем игры, поэтому не можете её начать.")
 
 
 ####### показ ситуаций пользователю
-
-
-# через api не работает пока
-def get_google_drive_file_list(url):
-    # Получение ID папки из ссылки на Google Диск
-    folder_id = url.split('/')[-2]
-
-    # Формирование URL для запроса списка файлов
-    api_url = f"https://www.googleapis.com/drive/v3/files?q='{folder_id}' in parents&fields=files(name)"
-
-    # Выполнение GET-запроса к API Google Диска
-    response = requests.get(api_url)
-
-    if response.status_code == 200:
-        # Извлечение списка файлов из ответа
-        files = response.json().get('files', [])
-
-        file_links = [file['webViewLink'] for file in files]
-
-        return file_links
-    else:
-        return []
-
+deck_of_sit_cards = {}
+trash_sit = {}
 # список ссылок на ситуации
-def generate_links():
-    base_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/wqQE/jobpWz7Zi/MemeF_"
+def generate_sit_links(game_code):
+    global deck_of_sit_cards
+    global trash_sit
+    global nazat_tarifs_sit
+    nabor = nazat_tarifs_sit[game_code]
+    '''for i in nabor:
+        send_message_to_players(game_code, str(i))'''
+
     links = []
-    for i in range(101, 351):
-        link = f"{base_url}{str(i)}.jpg"
-        links.append(link)
-    return links
+    url_1 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/s1/"
+    url_2 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/s2/"
+    url_3 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/s3/"
+    url_4 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/s4/"
+    est_demka = False
+    if 0 in nabor:
+        est_demka = True
+        for i in range(1, 11):
+            link1 = f"{url_1}N{str(i).zfill(5)}.jpg"
+            link2 = f"{url_2}N{str(i).zfill(5)}.jpg"
+            link3 = f"{url_3}N{str(i).zfill(5)}.jpg"
+            link4 = f"{url_4}N{str(i).zfill(5)}.jpg"
+            links.append(link1)
+            links.append(link2)
+            links.append(link3)
+            links.append(link4)
+    if 1 in nabor:
+        if est_demka:
+            for i in range(11, 101):
+                link1 = f"{url_1}N{str(i).zfill(5)}.jpg"
+                links.append(link1)
+        else:
+            for i in range(1, 101):
+                link1 = f"{url_1}N{str(i).zfill(5)}.jpg"
+                links.append(link1)
+    if 2 in nabor:
+        if est_demka:
+            for i in range(11, 101):
+                link2 = f"{url_2}N{str(i).zfill(5)}.jpg"
+                links.append(link2)
+        else:
+            for i in range(1, 101):
+                link2 = f"{url_2}N{str(i).zfill(5)}.jpg"
+                links.append(link2)
+    if 3 in nabor:
+        if est_demka:
+            for i in range(11, 101):
+                link3 = f"{url_3}N{str(i).zfill(5)}.jpg"
+                links.append(link3)
+        else:
+            for i in range(1, 101):
+                link3 = f"{url_3}N{str(i).zfill(5)}.jpg"
+                links.append(link3)
+    if 4 in nabor:
+        if est_demka:
+            for i in range(11, 101):
+                link4 = f"{url_4}N{str(i).zfill(5)}.jpg"
+                links.append(link4)
+        else:
+            for i in range(1, 101):
+                link4 = f"{url_4}N{str(i).zfill(5)}.jpg"
+                links.append(link4)
+    deck_of_sit_cards[game_code] = links  # колода карт sit в игре
+    trash_sit[game_code] = []  # сброс
 
+#список ссылок на действующие мемы
+def generate_meme_links(game_code): #nabor-список наборов [0,1,2,3,4]
+    global deck_of_meme_cards
+    global trash_memes
+    global nazat_tarifs_memes
+    nabor = nazat_tarifs_memes[game_code]
 
+    links = []
+    url_1 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/m1/"
+    url_2 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/m2/"
+    url_3 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/m3/"
+    url_4 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/m4/"
+    est_demka = False
+    if 0 in nabor:
+        est_demka = True
+        for i in range(1, 11):
+            link1 = f"{url_1}N{str(i).zfill(5)}.jpg"
+            link2 = f"{url_2}N{str(i).zfill(5)}.jpg"
+            link3 = f"{url_3}N{str(i).zfill(5)}.jpg"
+            link4 = f"{url_4}N{str(i).zfill(5)}.jpg"
+            links.append(link1)
+            links.append(link2)
+            links.append(link3)
+            links.append(link4)
+    if 1 in nabor:
+        if est_demka:
+            for i in range(11, 251):
+                link1 = f"{url_1}N{str(i).zfill(5)}.jpg"
+                links.append(link1)
+        else:
+            for i in range(1, 251):
+                link1 = f"{url_1}N{str(i).zfill(5)}.jpg"
+                links.append(link1)
+    if 2 in nabor:
+        if est_demka:
+            for i in range(11, 251):
+                link2 = f"{url_2}N{str(i).zfill(5)}.jpg"
+                links.append(link2)
+        else:
+            for i in range(1, 251):
+                link2 = f"{url_2}N{str(i).zfill(5)}.jpg"
+                links.append(link2)
+    if 3 in nabor:
+        if est_demka:
+            for i in range(11, 251):
+                link3 = f"{url_3}N{str(i).zfill(5)}.jpg"
+                links.append(link3)
+        else:
+            for i in range(1, 251):
+                link3 = f"{url_3}N{str(i).zfill(5)}.jpg"
+                links.append(link3)
+    if 4 in nabor:
+        if est_demka:
+            for i in range(11, 251):
+                link4 = f"{url_4}N{str(i).zfill(5)}.jpg"
+                links.append(link4)
+        else:
+            for i in range(1, 251):
+                link4 = f"{url_4}N{str(i).zfill(5)}.jpg"
+                links.append(link4)
+    deck_of_meme_cards[game_code] = links  # колода карт мемов в игре
+    trash_memes[game_code] = [] #сброс
 
-# chosen_photos[game_code]
+#выбор ситуации
+def random_choice_of_photo(game_code):
+    global deck_of_sit_cards
+    global trash_sit
 
+    if len(deck_of_sit_cards[game_code]) == 0:
+        send_message_to_players(game_code, "Ситуации закончились. Теперь вы будете видеть ситуации из колоды сброса. (Можно докупить наборы карт, чтобы играть было ещё веселей!")
+        deck_of_sit_cards[game_code] = trash_sit
+        trash_sit[game_code] = []
 
-def random_choice_of_photo(game_code, file_links):
-    if game_code not in chosen_photos:
-        chosen_photos[game_code] = file_links
-        game_situations_choice = file_links
-    else:
-        game_situations_choice = chosen_photos[game_code]
-
-    if len(game_situations_choice) == 0:
-        send_message_to_players(game_code, "Ситуации закончились")
-        return None
-    else:
-        random_photo_link = random.choice(game_situations_choice)
-        chosen_photos[game_code].remove(random_photo_link)
-        return random_photo_link
+    random_photo_link = random.choice(deck_of_sit_cards[game_code])
+    deck_of_sit_cards[game_code].remove(random_photo_link)
+    trash_sit[game_code].append(random_photo_link)
+    return random_photo_link
 
 # отправить фото в игру
 def send_photo_to_players(game_code, photo_url):
@@ -376,7 +788,7 @@ def download_situation(link):
     image = Image.open(requests.get(link, stream=True).raw)
 
     sit_photo_io = io.BytesIO()  # скачиваем фотки большие
-    image.save(sit_photo_io, format='PNG')
+    image.save(sit_photo_io, format='JPEG')
     sit_photo_io.seek(0)
 
     return sit_photo_io
@@ -384,9 +796,7 @@ def download_situation(link):
 
 #отправка ситуаций
 def send_situation(game_code):
-    file_links = generate_links()
-    link = random_choice_of_photo(game_code, file_links)
-    #situation_card = download_situation(link)
+    link = random_choice_of_photo(game_code)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         cards_on_table[game_code] = {}
@@ -406,21 +816,34 @@ def send_situation(game_code):
 
 
 
-
-
-
 ### разыгровка руки
 
+
+#обновления ссылок
+deck_of_meme_cards = {} #колода карт мемов в игре
+trash_memes = {} #сброс мемов
+def random_choice_of_link_meme(game_code):
+    global deck_of_meme_cards
+    global trash_memes
+    #ссылки на все доступные мемы
+    game_meme_choice = deck_of_meme_cards[game_code]
+    if len(game_meme_choice) == 0:
+        send_message_to_players(game_code, "Мемы закончились. Поэтому вы продолжите играть с мемами из колоды сброса. (Дополнительные картинки-мемы можно купить, чтобы игра была ещё интересней!)")
+        deck_of_meme_cards[game_code] = trash_memes[game_code]
+        trash_memes[game_code] = []
+    else:
+        random_meme_link = random.choice(game_meme_choice)
+        deck_of_meme_cards[game_code].remove(random_meme_link)
+        trash_memes[game_code].append(random_meme_link)
+        return random_meme_link
+
 # сделать ссылку на фото
-def create_link_big_meme(number):
-    base_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/EyiA/TBnRCET6Y/N"
-    link = f"{base_url}{str(number).zfill(5)}.jpg"
-    return link
-
-
+'''def create_link_big_meme(number):
+    base_url = f"https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/m4/"
+    link = f"{base_url}N{str(number).zfill(5)}.jpg"
+    return link'''
 # chosen_photos[game_code]
-
-def random_choice_of_number(game_code):
+'''def random_choice_of_number(game_code):
     game_meme_choice = chosen_memes[game_code]
 
     if len(game_meme_choice) == 0:
@@ -430,26 +853,26 @@ def random_choice_of_number(game_code):
         random_photo_number = random.choice(game_meme_choice)
         chosen_memes[game_code].remove(random_photo_number)
         #del chosen_memes[game_code][random_photo_number]
-        return random_photo_number
+        return random_photo_number'''
 
 #плашка 1/4
-plashka_url_4 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/ojSc/m5nh5b7wM/_/cursor275.jpg"
+plashka_url_4 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/cursor275.jpg"
 plashka_response_4 = requests.get(plashka_url_4)
 #if plashka_response_4.status_code == 200:
 plashka_4 = Image.open(BytesIO(plashka_response_4.content))
 
 #плагшка 1/5
-plashka_url_5 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/ojSc/m5nh5b7wM/_/cursor128.jpg"
+plashka_url_5 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/cursor128.jpg"
 plashka_response_5 = requests.get(plashka_url_5)
 plashka_5 = Image.open(BytesIO(plashka_response_5.content))
 
 #корона
-crown_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/ojSc/m5nh5b7wM/_/crown.png"
+crown_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/crown.png"
 crown_response = requests.get(crown_url)
 crown = Image.open(BytesIO(crown_response.content))
 
 #звезда
-star_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/ojSc/m5nh5b7wM/_/star.png"
+star_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/star.png"
 star_response = requests.get(star_url)
 star = Image.open(BytesIO(star_response.content))
 
@@ -488,13 +911,7 @@ from collections import OrderedDict
 
 
 # составляем колаж руки
-def combine_small_pic(user_id, small_photos_numbers):
-
-    small_photos_links = []
-    for number in small_photos_numbers:
-        link_m = create_link_big_meme(number)
-        small_photos_links.append(link_m)
-
+def combine_small_pic(user_id, small_photos_links):
     # Загрузка маленьких изображений параллельно
     small_images_bylinks = OrderedDict()  # OrderedDict для сохранения порядка загруженных изображений
 
@@ -1071,7 +1488,6 @@ def add_mem_plashka(game_code, number, position): #от 0
 def table(player_id, game_code):
     battle_cards[game_code] = {}
 
-
     players = active_games[game_code]['players']
 
     #добавляем рандомные фотки
@@ -1083,21 +1499,21 @@ def table(player_id, game_code):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             features = {}
             big_images_bynumb = OrderedDict()
-            cards = []
+            cards_links = []
             #for i in range (8 - len(players)):
             for i in range(4 - len(players)):
-                card_number = random_choice_of_number(game_code)
-                cards.append(card_number)
+                card_link = random_choice_of_link_meme(game_code)
+                cards_links.append(card_link)
 
-                future = executor.submit(download_big_photo, card_number)
-                features[future] = card_number
+                future = executor.submit(download_big_photo, card_link)
+                features[future] = card_link
             # Дождитесь завершения всех загрузок больших фотографий
             for future in concurrent.futures.as_completed(features):
                 card_number = features[future]
                 result = future.result()
                 big_images_bynumb[card_number] = result
 
-            for number in cards:
+            for number in cards_links:
                 cards_on_table[game_code]['photos_on_table'].append(['bot', big_images_bynumb[number].getvalue()])
 
     # перемешиваю карты
@@ -1360,8 +1776,7 @@ def combine_callback_handler(callback_query):
 import json
 
 
-def download_big_photo(card_number):
-    big_photo_link = create_link_big_meme(card_number)
+def download_big_photo(big_photo_link):
     try:
         image = Image.open(requests.get(big_photo_link, stream=True).raw)
     except Exception as e:
@@ -1380,9 +1795,12 @@ def optimization_hand_cards(game_code, player_id):
     if game_code not in players_hand:
         players_hand[game_code] = {}
 
-    all_meme_links = [i for i in range(1, 251)]  # all numbers of memes
-    if game_code not in chosen_memes:
-        chosen_memes[game_code] = all_meme_links
+    '''#генерим все ссылки на все мемы. появляется deck_of_meme_cards, trash_memes
+    generate_meme_links(game_code)'''
+
+    #all_meme_links = [i for i in range(1, 251)]  # all numbers of memes
+    '''if game_code not in chosen_memes:
+        chosen_memes[game_code] = all_meme_links'''
 
     players_hand[game_code][player_id] = []
     if game_code not in photo_bar_players:
@@ -1392,16 +1810,14 @@ def optimization_hand_cards(game_code, player_id):
     features = {}
     big_images_bynumb = OrderedDict()
     with concurrent.futures.ThreadPoolExecutor() as executor:
-
         for number in range(5):
-            card_number = random_choice_of_number(game_code)
-            # send_message_to_players(game_code, str(len(chosen_memes[game_code])))
+            card_link = random_choice_of_link_meme(game_code)
             #card_number = 4
-            players_hand[game_code][player_id].append(card_number)  # добавили номер
+            players_hand[game_code][player_id].append(card_link)  # добавили номер
 
             try:
-                future = executor.submit(download_big_photo, card_number)
-                features[future] = card_number
+                future = executor.submit(download_big_photo, card_link)
+                features[future] = card_link
             except Exception as e:
                 print(f"Ошибка при загрузке изображения: {e}")
                 send_message_to_players(game_code, "ошибка")
@@ -1457,12 +1873,12 @@ def optimization_update_hands (player_id, game_code):
     features = {}
     big_images_bynumb = OrderedDict()
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        card_number = random_choice_of_number(game_code)
+        card_link = random_choice_of_link_meme(game_code)
         # send_message_to_players(game_code, str(len(chosen_memes[game_code])))
-        players_hand[game_code][player_id].append(card_number)  # добавили номер
+        players_hand[game_code][player_id].append(card_link)  # добавили номер
 
-        future = executor.submit(download_big_photo, card_number)
-        features[future] = card_number
+        future = executor.submit(download_big_photo, card_link)
+        features[future] = card_link
 
         # Дождитесь завершения всех загрузок больших фотографий
         for future in concurrent.futures.as_completed(features):
@@ -1496,8 +1912,8 @@ def delete_stuff(game_code):
     del flag_vse_progolos[game_code]
     if game_code in rating:
         del rating[game_code]
-    if game_code in chosen_photos:
-        del chosen_photos[game_code]
+    '''if game_code in chosen_photos:
+        del chosen_photos[game_code]'''
     if game_code in cards_on_table:
         del cards_on_table[game_code]
     # del voted_players[game_code]
@@ -1515,8 +1931,8 @@ def delete_stuff(game_code):
         del kolvo_players_that_send_mem[game_code]
     if game_code in players_order:
         del players_order[game_code]
-    if game_code in chosen_memes:
-        del chosen_memes[game_code]
+    '''if game_code in chosen_memes:
+        del chosen_memes[game_code]'''
 
     del photo_bar_players[game_code]
     del message_list_of_players[game_code]
@@ -1532,6 +1948,9 @@ def repeat(callback_query):
     player_id = callback_query.from_user.id
     pl_name = callback_query.from_user.first_name
     game_code = data[1]
+    # удаляем прошлое сообщение
+    message_id = callback_query.message.message_id
+    bot.delete_message(player_id, message_id)
     #первый раз нажали
     if game_code not in remember_players:
         remember_players[game_code] = copy.copy(active_games[game_code])
@@ -1556,18 +1975,22 @@ def repeat(callback_query):
             id_and_names[game_code][player_id] = pl_name
 
             # Отправляем ссылку создателю игры
-            bot.send_message(player_id, f"Продолжаем игру с кодом: {game_code}")
-
-            markup = types.InlineKeyboardMarkup(row_width=2)
-            start_game_button = types.InlineKeyboardButton("Начать игру", callback_data="start_game")
-            drop_button = types.InlineKeyboardButton("Назад", callback_data="drop")
-            markup.add(start_game_button, drop_button)
-            bot.send_message(player_id, f'Когда все присоединятся, нажмите "Начать игру"', reply_markup=markup)
+            message_1 = bot.send_message(player_id, f"Продолжаем игру с кодом: {game_code}")
+            message_id_1 = message_1.message_id
 
             if len(active_games[game_code]['players']) > 1:
                 update_players_message(game_code, player_id, pl_name)
             else:
                 create_players_message(game_code, player_id)
+
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            callback_data_start = f"start:{game_code}:{message_id_1}"
+
+            start_game_button = types.InlineKeyboardButton("Начать игру", callback_data=callback_data_start)
+            drop_button = types.InlineKeyboardButton("Назад", callback_data="drop")
+            markup.add(start_game_button, drop_button)
+            bot.send_message(player_id, f'Когда все присоединятся, нажмите "Начать игру"', reply_markup=markup)
+
             optimization_hand_cards(game_code, player_id)
         else:
             #добавляем игрока, если криэйтор есть
@@ -1588,7 +2011,7 @@ def players_hand_cards(game_code):
     # если не набран максимум очков
     first_key, first_value = next(iter(rating[game_code].items()))
 
-    # first_value -  максимум голосов для окончания
+    # first_value - максимум голосов для окончания
     # окончание игры
     if first_value >= 1:
         if first_key in id_and_names[game_code]:
@@ -1634,7 +2057,6 @@ def players_hand_cards(game_code):
             #send_message_to_players(game_code, "1 раунд")
             send_situation(game_code)
             #send_message_to_players(game_code, "Выберите свой мем:")
-            # запоминаем id чтобы потом удалить
             players = active_games[game_code]['players']
             for player_id in players:
                 sit = bot.send_message(player_id, "Выберите свой мем:")
