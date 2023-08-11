@@ -11,11 +11,20 @@ import os
 import io
 import threading
 import sqlite3
+
+import decimal
+import hashlib
+from urllib import parse
+from urllib.parse import urlparse
+from flask import Flask, request, jsonify
 from threading import Lock
 import asyncio
 from telegram.ext import Updater, CallbackQueryHandler
 
-bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
+#bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
+bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU")
+
+
 
 # Словарь для хранения активных игр
 active_games = {}
@@ -40,6 +49,19 @@ blank_table = {} #пустой стол голсования
 chosen_photos = {}
 #chosen_memes = {}
 players_hand = {}
+
+#все доступные тарифы meme 0,1,2,3,4
+all_available_tarifs_memes = {}
+nazat_tarifs_memes = {}
+
+all_available_tarifs_sit = {}
+nazat_tarifs_sit = {}
+
+deck_of_sit_cards = {}
+trash_sit = {}
+
+deck_of_meme_cards = {} #колода карт мемов в игре
+trash_memes = {} #сброс мемов
 
 
 
@@ -125,6 +147,15 @@ def main_menu(callback_query):
         delete_stuff(game_code)
         del id_and_names[game_code]
 
+        del all_available_tarifs_memes[game_code]
+        del nazat_tarifs_memes[game_code]
+        del all_available_tarifs_sit[game_code]
+        del nazat_tarifs_sit[game_code]
+        del deck_of_sit_cards[game_code]
+        del trash_sit[game_code]
+        del deck_of_meme_cards[game_code]
+        del trash_memes[game_code]
+
     markup = types.InlineKeyboardMarkup(row_width=1)
     new_game_button = types.InlineKeyboardButton("Новая игра", callback_data="new_game")
     join_game_button = types.InlineKeyboardButton("Присоединиться к игре", callback_data="join_game")
@@ -147,25 +178,25 @@ def rules(message):
     bot.send_message(player_id, f"ляля тут будут правила", reply_markup=markup)
 
 #sql добавить
-def create_table():
-    connect = sqlite3.connect("db.db")
-    cursor = connect.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
-                      id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      user_id INTEGER,
-                      user_name TEXT,
-                      tarif TEXT
-                   )''')
-    connect.commit()
-def add(user_id, user_name, tarif, expiration_date):
-    create_table()
-    #подключаем нашу базу данных
-    connect = sqlite3.connect("db.db")
-    #курсор для работы с таблицами
-    cursor = connect.cursor()
-    cursor.execute('INSERT INTO subscriptions (user_id, user_name, tarif, expiration_date) VALUES (?, ?, ?, ?)',
-                   (user_id, user_name, tarif, expiration_date))
-    connect.commit()
+# def create_table():
+#     connect = sqlite3.connect("db.db")
+#     cursor = connect.cursor()
+#     cursor.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
+#                       id INTEGER PRIMARY KEY AUTOINCREMENT,
+#                       user_id INTEGER,
+#                       user_name TEXT,
+#                       tarif TEXT
+#                    )''')
+#     connect.commit()
+# def add(user_id, user_name, tarif, expiration_date):
+#     create_table()
+#     #подключаем нашу базу данных
+#     connect = sqlite3.connect("db.db")
+#     #курсор для работы с таблицами
+#     cursor = connect.cursor()
+#     cursor.execute('INSERT INTO subscriptions (user_id, user_name, tarif, expiration_date) VALUES (?, ?, ?, ?)',
+#                    (user_id, user_name, tarif, expiration_date))
+#     connect.commit()
 
 #смотрим на подписки юзера
 def get_user_subscriptions(user_id):
@@ -192,6 +223,7 @@ def chose_tarif_meme(callback_query):
     #bot.delete_message(player_id, message_id)
     if button not in all_available_tarifs_memes[game_code]:
         bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
+        robocassa(player_id, button, game_code)
     else:
         if button not in nazat_tarifs_memes[game_code]: #кнопка ненажата -> нажата = зеленый
             nazat_tarifs_memes[game_code].append(button)
@@ -216,8 +248,8 @@ def chose_tarif_meme(callback_query):
         demo = types.InlineKeyboardButton(f"{logos[0]}Демка (по 10 из всех сетов)", callback_data=demo_meme)
         base = types.InlineKeyboardButton(f"{logos[1]}База (250 шт.)", callback_data=base_meme)
         cccp = types.InlineKeyboardButton(f"{logos[2]}СССР (250 шт.)", callback_data=cccp_meme)
-        cats = types.InlineKeyboardButton(f"{logos[3]}Котики (250 шт)", callback_data=cats_meme)
-        neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (250 шт)", callback_data=neiro_meme)
+        cats = types.InlineKeyboardButton(f"{logos[3]}Котики (250 шт.)", callback_data=cats_meme)
+        neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (250 шт.)", callback_data=neiro_meme)
         markup.row(demo)
         markup.add(base, cccp, cats, neiro)
         #bot.send_message(player_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
@@ -227,6 +259,220 @@ def chose_tarif_meme(callback_query):
         bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id, text="Приятель, тебе придётся выбрать набор мемов-картинок:",
                               reply_markup=markup)
         #bot.edit_message_text(chat_id=player_id, message_id=message_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+
+
+#из документации
+def calculate_signature(*args) -> str:
+    """Create signature MD5.
+    """
+    return hashlib.md5(':'.join(str(arg) for arg in args).encode()).hexdigest()
+
+
+
+
+
+
+
+
+# Формирование URL переадресации пользователя на оплату.
+
+def generate_payment_link(
+    merchant_login: str,  # Merchant login
+    merchant_password_1: str,  # Merchant password
+    cost: decimal,  # Cost of goods, RU
+    InvId: int,  # Invoice number
+    description: str,  # Description of the purchase
+    is_test = 1,
+    robokassa_payment_url = 'https://auth.robokassa.ru/Merchant/Index.aspx',
+) -> str:
+    """URL for redirection of the customer to the service.
+    """
+    signature = calculate_signature(
+        merchant_login,
+        cost,
+        InvId,
+        merchant_password_1
+    )
+
+    data = {
+        'MerchantLogin': merchant_login,
+        'OutSum': cost,
+        'InvId': InvId,
+        'Description': description,
+        'SignatureValue': signature,
+        'IsTest': is_test
+    }
+    return f'{robokassa_payment_url}?{parse.urlencode(data)}'
+
+
+
+all_names_of_tarifs = ['Демка', 'База', 'СССР', 'Котики', 'НЕЙРО']
+
+#робокасса (менюшки с выбором лотов)
+def robocassa(user_id, button, game_code):
+    #длина юзернейма, юзернейм, длина числа кнопки, кнопка, которую нажали(номер тарифа)
+    len_user = len(str(user_id))
+    if button >= 10:
+        len_button = 2
+    else:
+        len_button = 1
+    for_all = str(len_user) + str(user_id) + str(len_button) + str(button)
+    #при выборе всех набор, номер будет 100
+    full_len_button = 3
+    full_for_all = str(len_user) + str(user_id) + str(full_len_button) + str(100)
+
+    #генерация ссылки на 1 день (пока тестовая)
+    payment_link_day = generate_payment_link(
+        merchant_login="memesparty",
+        merchant_password_1="economicustest1",
+        cost=decimal.Decimal("0"),
+        InvId=int(for_all + str(1)), #номер счёта составить хитро
+        description="Техническая документация по ROBOKASSA"
+    )
+
+    # генерация ссылки на 1 месяц (пока тестовая)
+    payment_link_month = generate_payment_link(
+        merchant_login="memesparty",
+        merchant_password_1="economicustest1",
+        cost=decimal.Decimal("0"),
+        InvId=int(for_all + str(30)),  # номер счёта составить хитро
+        description="Техническая документация по ROBOKASSA"
+    )
+
+    # генерация ссылки на 1 год (пока тестовая)
+    payment_link_year = generate_payment_link(
+        merchant_login="memesparty",
+        merchant_password_1="economicustest1",
+        cost=decimal.Decimal("0"),
+        InvId=int(for_all + str(365)),  # номер счёта составить хитро
+        description="Техническая документация по ROBOKASSA"
+    )
+
+    # full генерация ссылки на 1 день (пока тестовая)
+    full_payment_link_day = generate_payment_link(
+        merchant_login="memesparty",
+        merchant_password_1="economicustest1",
+        cost=decimal.Decimal("0"),
+        InvId=int(full_for_all + str(1)),  # номер счёта составить хитро
+        description="Техническая документация по ROBOKASSA"
+    )
+
+    # full_ генерация ссылки на 1 месяц (пока тестовая)
+    full_payment_link_month = generate_payment_link(
+        merchant_login="memesparty",
+        merchant_password_1="economicustest1",
+        cost=decimal.Decimal("0"),
+        InvId=int(full_for_all + str(30)),  # номер счёта составить хитро
+        description="Техническая документация по ROBOKASSA"
+    )
+
+    # full_ генерация ссылки на 1 год (пока тестовая)
+    full_payment_link_year = generate_payment_link(
+        merchant_login="memesparty",
+        merchant_password_1="economicustest1",
+        cost=decimal.Decimal("0"),
+        InvId=int(full_for_all + str(365)),  # номер счёта составить хитро
+        description="Техническая документация по ROBOKASSA"
+    )
+
+
+
+    keyboard_1 = telebot.types.InlineKeyboardMarkup()
+    pay_button_day = telebot.types.InlineKeyboardButton(text=f"{all_names_of_tarifs[button]} на 1 день", url=payment_link_day)
+    pay_button_month = telebot.types.InlineKeyboardButton(text=f"{all_names_of_tarifs[button]} на 1 месяц",
+                                                    url=payment_link_month)
+    pay_button_year = telebot.types.InlineKeyboardButton(text=f"{all_names_of_tarifs[button]} на 1 год",
+                                                    url=payment_link_year)
+    keyboard_1.add(pay_button_day, pay_button_month, pay_button_year)
+    bot.send_message(user_id, text="Этот набор пока недоступен. Хорошая новость: его можно купить! Выберите нужный тариф и нажмите на одну из кнопок ниже для оплаты", reply_markup=keyboard_1)
+
+
+    keyboard_2 = telebot.types.InlineKeyboardMarkup()
+    pay_button_day = telebot.types.InlineKeyboardButton(text=f"Всё на 1 день",
+                                                        url=full_payment_link_day)
+    pay_button_month = telebot.types.InlineKeyboardButton(text=f"Всё на 1 месяц",
+                                                          url=full_payment_link_month)
+    pay_button_year = telebot.types.InlineKeyboardButton(text=f"Всё на 1 год",
+                                                         url=full_payment_link_year)
+    keyboard_2.add(pay_button_day, pay_button_month, pay_button_year)
+    bot.send_message(user_id,
+                     text="А ещё можно играть всеми картами! Скорее жми:)",
+                     reply_markup=keyboard_2)
+
+    '''call_data = f"pay_mem:{button}:{game_code}"
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    chestno = types.InlineKeyboardButton(text="Я честно оплатил:)", callback_data=call_data)
+    markup.row(chestno)
+
+    bot.send_message(chat_id=user_id, text="подтверди", reply_markup=markup)'''
+    call_data = f"pay_mem:{button}:{game_code}"
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    chestno = types.InlineKeyboardButton(text="Обновить", callback_data=call_data)
+    markup.row(chestno)
+
+    bot.send_message(chat_id=user_id, text="Чтобы продолжить нажми на кнопку", reply_markup=markup)
+
+
+
+
+@bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('pay_mem:'))
+def payment(callback_query):
+    data = callback_query.data.split(':')
+    player_id = callback_query.from_user.id
+    button = int(data[1])
+    game_code = data[2]
+    player_id = callback_query.from_user.id
+    # bot.send_message(player_id, "Поздравляем с покупкой!")
+    #
+    # # Получить текущую дату и время
+    # current_datetime = datetime.datetime.now()
+    # # Преобразовать текущую дату и время в текстовый формат (строку)
+    # current_datetime_text = current_datetime.strftime("%d.%m.%Y %H:%M:%S")
+    # # Прибавить месяц
+    # one_month_later = current_datetime + datetime.timedelta(days=30)
+    # # Преобразовать новые даты и время в текстовый формат (строку)
+    # one_month_later_text = one_month_later.strftime("%d.%m.%Y %H:%M:%S")
+    #
+    #
+    # if button == 1:
+    #     text = "База"
+    # elif button == 2:
+    #     text = "СССР"
+    # elif button == 3:
+    #     text = "Котики"
+    # else:
+    #     text = "НЕЙРО"
+    # add(player_id, "sakuharo", text, one_month_later_text)
+
+    chose_deck_of_cards(player_id, game_code)
+
+    # chat_id = call.message.chat.id
+    # labeled = [{'label': 'Руб', 'amount': 10000}]  # label и сумма заказа
+    # invoice = telebot.types.Invoice(
+    #     title='Оплата через Робокассу',
+    #     description='Тестовый товар №1',
+    #     start_parameter='test',
+    #     currency='RUB',
+    #     prices=labeled,
+    #     provider_token='11111111111:LIVE:637955761195928888',  # токен выданный через бот @RobokassaPaymentBot
+    #     payload='test_payload'
+    # )
+    #
+    # bot.send_invoice(chat_id, **invoice.to_dict())
+
+
+
+
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def process_pre_checkout_query(pre_checkout_query):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+
+@bot.message_handler(content_types=['successful_payment'])
+def handle_successful_payment(message):
+    chat_id = message.chat.id
+    bot.send_message(chat_id, 'Successful payment')
+
 
 #ситуации
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('sit_tarif:'))
@@ -242,7 +488,9 @@ def chose_tarif_sit(callback_query):
     message_id = callback_query.message.message_id
     #bot.delete_message(player_id, message_id)
     if button not in all_available_tarifs_sit[game_code]:
-        bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
+        #bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
+        #робокасса
+        robocassa(player_id, button, game_code)
     else:
         if button not in nazat_tarifs_sit[game_code]: #кнопка ненажата -> нажата = зеленый
             nazat_tarifs_sit[game_code].append(button)
@@ -267,8 +515,8 @@ def chose_tarif_sit(callback_query):
         demo = types.InlineKeyboardButton(f"{logos[0]}Демка (по 10 из всех сетов)", callback_data=demo_sit)
         base = types.InlineKeyboardButton(f"{logos[1]}База (100 шт.)", callback_data=base_sit)
         cccp = types.InlineKeyboardButton(f"{logos[2]}СССР (100 шт.)", callback_data=cccp_sit)
-        cats = types.InlineKeyboardButton(f"{logos[3]}Котики (100 шт)", callback_data=cats_sit)
-        neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (100 шт)", callback_data=neiro_sit)
+        cats = types.InlineKeyboardButton(f"{logos[3]}Котики (100 шт.)", callback_data=cats_sit)
+        neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (100 шт.)", callback_data=neiro_sit)
         markup.row(demo)
         markup.add(base, cccp, cats, neiro)
         #bot.send_message(player_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
@@ -280,12 +528,7 @@ def chose_tarif_sit(callback_query):
         #bot.edit_message_text(chat_id=player_id, message_id=message_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
 
 
-#все доступные тарифы meme 0,1,2,3,4
-all_available_tarifs_memes = {}
-nazat_tarifs_memes = {}
 
-all_available_tarifs_sit = {}
-nazat_tarifs_sit = {}
 
 
 #выбор колоды мемов и ситуаций
@@ -315,10 +558,12 @@ def chose_deck_of_cards(player_id, game_code):
     one_year_later_text = one_year_later.strftime("%d.%m.%Y %H:%M:%S")
 
     '''
-    #add(player_id, "sakuharo", "СССР", "10.08.2024 15:30:00")
+    #add(player_id, "sakuharo", "+", "10.08.2024 15:30:00")
     #add(player_id, "sakuharo", "Котики", "10.08.2021 15:30:00")
     # смотрим на подписки игрока
     user_subscriptions = get_user_subscriptions(player_id)
+    '''for i in user_subscriptions:
+        bot.send_message(player_id, str(i))'''
     nazat_tarifs_memes[game_code] = [0]
     nazat_tarifs_sit[game_code] = [0]
 
@@ -338,8 +583,8 @@ def chose_deck_of_cards(player_id, game_code):
     if not user_subscriptions:
         base = types.InlineKeyboardButton("🔒База (250 шт.)", callback_data=base_meme)
         cccp = types.InlineKeyboardButton("🔒СССР (250 шт.)", callback_data=cccp_meme)
-        cats = types.InlineKeyboardButton("🔒Котики (250 шт)", callback_data=cats_meme)
-        neiro = types.InlineKeyboardButton("🔒НЕЙРО (250 шт)", callback_data=neiro_meme)
+        cats = types.InlineKeyboardButton("🔒Котики (250 шт.)", callback_data=cats_meme)
+        neiro = types.InlineKeyboardButton("🔒НЕЙРО (250 шт.)", callback_data=neiro_meme)
     # если есть подписка на что-то
     else:
         # Получить текущую дату и время
@@ -365,15 +610,15 @@ def chose_deck_of_cards(player_id, game_code):
         else:
             cccp = types.InlineKeyboardButton("🔒СССР (250 шт.)", callback_data=cccp_meme)
         if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
-            cats = types.InlineKeyboardButton("⚪️ Котики (250 шт)", callback_data=cats_meme)
+            cats = types.InlineKeyboardButton("⚪️ Котики (250 шт.)", callback_data=cats_meme)
             all_available_tarifs_memes[game_code].append(3)
         else:
-            cats = types.InlineKeyboardButton("🔒Котики (250 шт)", callback_data=cats_meme)
+            cats = types.InlineKeyboardButton("🔒Котики (250 шт.)", callback_data=cats_meme)
         if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
-            neiro = types.InlineKeyboardButton("⚪ НЕЙРО (250 шт)", callback_data=neiro_meme)
+            neiro = types.InlineKeyboardButton("⚪ НЕЙРО (250 шт.)", callback_data=neiro_meme)
             all_available_tarifs_memes[game_code].append(4)
         else:
-            neiro = types.InlineKeyboardButton("🔒НЕЙРО (250 шт)", callback_data=neiro_meme)
+            neiro = types.InlineKeyboardButton("🔒НЕЙРО (250 шт.)", callback_data=neiro_meme)
     markup.row(demo)
     markup.add(base, cccp, cats, neiro)
     message = bot.send_message(player_id, f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
@@ -523,6 +768,15 @@ def drop(callback_query):
         delete_stuff(game_code)
         del id_and_names[game_code]
 
+        del all_available_tarifs_memes[game_code]
+        del nazat_tarifs_memes[game_code]
+        del all_available_tarifs_sit[game_code]
+        del nazat_tarifs_sit[game_code]
+        del deck_of_sit_cards[game_code]
+        del trash_sit[game_code]
+        del deck_of_meme_cards[game_code]
+        del trash_memes[game_code]
+
     markup = types.InlineKeyboardMarkup(row_width=1)
     new_game_button = types.InlineKeyboardButton("Новая игра", callback_data="new_game")
     join_game_button = types.InlineKeyboardButton("Присоединиться к игре", callback_data="join_game")
@@ -632,8 +886,7 @@ def start_game(callback_query):
 
 
 ####### показ ситуаций пользователю
-deck_of_sit_cards = {}
-trash_sit = {}
+
 # список ссылок на ситуации
 def generate_sit_links(game_code):
     global deck_of_sit_cards
@@ -820,8 +1073,7 @@ def send_situation(game_code):
 
 
 #обновления ссылок
-deck_of_meme_cards = {} #колода карт мемов в игре
-trash_memes = {} #сброс мемов
+
 def random_choice_of_link_meme(game_code):
     global deck_of_meme_cards
     global trash_memes
@@ -2100,8 +2352,8 @@ def players_hand_cards(game_code):
 
 
 
-
-bot.polling(none_stop=True)
+#надо как-то сделать юот бесконечным, а то ун умирает через какое-то время, если его не использовать
+bot.polling(none_stop=True, timeout = 31536000)
 
 
 
