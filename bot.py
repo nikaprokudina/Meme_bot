@@ -27,8 +27,8 @@ import copy
 #from telegram.ext import Updater, CallbackQueryHandler
 #import json
 
-bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
-#bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU")
+#bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
+bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU")
 
 
 
@@ -327,7 +327,7 @@ def generate_payment_link(
 
 
 
-all_names_of_tarifs = ['Демка', 'База', 'СССР', 'Котики', 'НЕЙРО']
+all_names_of_tarifs = ['Демка', 'МЕМЫ: Весело и в точку!', 'МЕМЫ 2: СССР и 90-е', 'МЕМЫ 3: Котики и пр. нелюди', 'МЕМЫ НЕЙРО']
 
 # переход на сайт для оплаты + обновление сообщений
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('payment_link:'))
@@ -448,16 +448,24 @@ def robocassa(user_id, button, game_code):
     pay_button_year = telebot.types.InlineKeyboardButton(text=f"год: 900 ₽.",
                                                     url=payment_link_year)
     keyboard_1.add(pay_button_day, pay_button_month, pay_button_year)
+    if button == 1:
+        emoji = "🎯"
+    elif button == 2:
+        emoji = "🕺"
+    elif button == 3:
+        emoji = "😻"
+    else:
+        emoji = "⚡️"
     if not robocassa_first_time[game_code]:
         try:
             message_1 = bot.edit_message_text(chat_id=user_id, message_id=ids_3_otmena[game_code][0],
-                                         text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}»</b> (250 мемов + 100 ситуаций) на период:",
+                                         text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:",
                                          reply_markup=keyboard_1, parse_mode="HTML")
             message_1_id = ids_3_otmena[game_code][0]
         except:
             message_1_id = ids_3_otmena[game_code][0]
     else:
-        message_1 = bot.send_message(user_id, text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}»</b> (250 мемов + 100 ситуаций) на период:", reply_markup=keyboard_1, parse_mode="HTML")
+        message_1 = bot.send_message(user_id, text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:", reply_markup=keyboard_1, parse_mode="HTML")
         message_1_id = message_1.message_id
 
 
@@ -571,7 +579,6 @@ def handle_successful_payment(message):
     bot.send_message(chat_id, 'Successful payment')
 
 
-
 #ситуации
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('sit_tarif:'))
 def chose_tarif_sit(callback_query):
@@ -582,6 +589,8 @@ def chose_tarif_sit(callback_query):
         player_id = callback_query.from_user.id
         game_code = data[1]
         button = int(data[2])
+
+
 
         if button not in all_available_tarifs_sit[game_code]:
             #bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
