@@ -71,22 +71,22 @@ def result_payment(merchant_password_2: str, request: str) -> str:
         #разрезаем число на нужные данные
         str_num = str(number)
         len_user = int(str_num[0])
-        player_id = str_num[1:len_user+1]
-        len_button = int(str_num[len_user+1])
-        button = int(str_num[len_user+2:len_user+2+len_button+1])
-        days = str_num[len_user+2+len_button+1:]
+        player_id = str_num[1:len_user + 1]
+        len_button = int(str_num[len_user + 1])
+        button = int(str_num[len_user + 2:len_user + 2 + len_button])
+        days = int(str_num[len_user + len_button + 2:])
 
         #bot.send_message(player_id, "Поздравляем с покупкой!")
 
         # Получить текущую дату и время
         current_datetime = datetime.datetime.now()
         # Преобразовать текущую дату и время в текстовый формат (строку)
-        current_datetime_text = current_datetime.strftime("%d.%m.%Y %H:%M:%S")
+        #current_datetime_text = current_datetime.strftime("%d.%m.%Y %H:%M:%S")
         # Прибавить нужный тариф
         if days == 1:
             expiration = current_datetime + datetime.timedelta(days=1)
         elif days == 30: # Прибавить месяц
-            expiration = current_datetime + datetime.timedelta(days=30)
+            expiration = current_datetime.replace(month=current_datetime.month + 1)
         else: # Прибавить год
             expiration = current_datetime.replace(year=current_datetime.year + 1)
 
@@ -94,9 +94,12 @@ def result_payment(merchant_password_2: str, request: str) -> str:
         one_month_later_text = expiration.strftime("%d.%m.%Y %H:%M:%S")
 
         all_names_of_tarifs = ['Демка', 'База', 'СССР', 'Котики', 'НЕЙРО']
-        text = all_names_of_tarifs[button]
-
-        add(player_id, "sakuharo", text, one_month_later_text)
+        if len_button < 3:
+            text = all_names_of_tarifs[button]
+            add(player_id, "sakuharo", text, one_month_later_text)
+        else:
+            for text in all_names_of_tarifs[1:]:
+                add(player_id, "sakuharo", text, one_month_later_text)
 
         return f'OK{param_request["InvId"]}'
     return "bad sign"
