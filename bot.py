@@ -1844,6 +1844,7 @@ def table(player_id, game_code):
     active_players = players_order[game_code]
 
     # добавляем рандомные фотки
+    #bot.send_message(player_id, f"кол-во игроков {len(active_players)}")
     if len(active_players) < 4:
         if players_hand[game_code]['round'] == 1:
             send_message_to_players(game_code,
@@ -2021,7 +2022,7 @@ def combine_callback_handler(callback_query):
             chosen_mem_number = cards_on_table[game_code][player_id]
             chosen_photo = BytesIO(photo_bar_players[game_code][player_id][chosen_mem_number])
 
-            if game_code not in kolvo_players_that_send_mem:
+            if game_code not in kolvo_players_that_send_mem or (game_code in kolvo_players_that_send_mem and kolvo_players_that_send_mem[game_code] == 0):
                 kolvo_players_that_send_mem[game_code] = 1
                 players_order[game_code] = []
             else:
@@ -2442,7 +2443,7 @@ def players_hand_cards(game_code):
 
     # first_value - максимум голосов для окончания
     # окончание игры
-    if first_value >= 1:
+    if first_value >= 2:
         if first_key in id_and_names[game_code]:
             pl_name = id_and_names[game_code][first_key]
         else:
