@@ -1,4 +1,4 @@
-#Timer 2 рабочие
+# Timer 2 рабочие
 import telebot
 import random
 import string
@@ -19,39 +19,35 @@ from collections import OrderedDict
 import datetime
 import copy
 
-
-
-
 bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
-#bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
-
+# bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
 
 
 # Словарь для хранения активных игр
 active_games = {}
 cards_on_table = {}
-battle_cards = {} #голоса за карты
+battle_cards = {}  # голоса за карты
 kolvo_players_that_send_mem = {}
 voted_players = {}
 players_order = {}
-id_and_names = {} #по id можно расшифровать имя игрока
+id_and_names = {}  # по id можно расшифровать имя игрока
 
 photo_bar_players = {}
 
 # Словарь для хранения сообщения списка игроков
 message_list_of_players = {}
 usernames = {}
-rating = {} #действующий рейтинг игроков (если игроков мало, то среди них есть бот
+rating = {}  # действующий рейтинг игроков (если игроков мало, то среди них есть бот
 flag_vse_progolos = {}
 flag_pl_otpravil = {}
 messages_ids = {}
 all_combined_images = {}
-blank_table = {} #пустой стол голсования
+blank_table = {}  # пустой стол голсования
 chosen_photos = {}
-#chosen_memes = {}
+# chosen_memes = {}
 players_hand = {}
 
-#все доступные тарифы meme 0,1,2,3,4
+# все доступные тарифы meme 0,1,2,3,4
 all_available_tarifs_memes = {}
 nazat_tarifs_memes = {}
 
@@ -61,33 +57,33 @@ nazat_tarifs_sit = {}
 deck_of_sit_cards = {}
 trash_sit = {}
 
-deck_of_meme_cards = {} #колода карт мемов в игре
-trash_memes = {} #сброс мемов
+deck_of_meme_cards = {}  # колода карт мемов в игре
+trash_memes = {}  # сброс мемов
 
-#запонимнаем список игроков с прошлого раунда
+# запонимнаем список игроков с прошлого раунда
 remember_players = {}
 
 mozno_li_nazat_gotovo = {}
 mozno_obnovlat = {}
 
-ids_chose_lots_all = {} #хранение всех id сообщений с выбором лотов, которые нужно будет удалить после нажатия на кнопку обновить
-now_obnov = {} #содержится в ids_3_otmena отмена или обновть
+ids_chose_lots_all = {}  # хранение всех id сообщений с выбором лотов, которые нужно будет удалить после нажатия на кнопку обновить
+now_obnov = {}  # содержится в ids_3_otmena отмена или обновть
 
 ids_3_otmena = {}
-robocassa_first_time = {} #bool нажата ли робокасса или нет
+robocassa_first_time = {}  # bool нажата ли робокасса или нет
 
-ids_3_gotovo = {} #словарь, где хранятся 3 id сообщений с кнопками (выбор мемов и ситуаций) + кнопка готово
+ids_3_gotovo = {}  # словарь, где хранятся 3 id сообщений с кнопками (выбор мемов и ситуаций) + кнопка готово
 mozno_nazad_v_menu = {}
-
-
 
 # Создаем блокировку для синхронизации доступа к словарю message_list_of_players
 message_list_lock = threading.Lock()
+
 
 def send_message_to_players(game_code, message):
     players = active_games[game_code]['players']
     for player_id in players:
         bot.send_message(player_id, message)
+
 
 def create_players_message(game_code, creator_id):
     players = active_games[game_code]['players']
@@ -95,7 +91,7 @@ def create_players_message(game_code, creator_id):
     name = id_and_names[game_code][creator_id]
     message = "Игроки:\n" + "\n".join(users)
 
-    #message = f"Игроки:\n{name}"
+    # message = f"Игроки:\n{name}"
     mes = bot.send_message(creator_id, message)
     message_id = mes.message_id
     with message_list_lock:
@@ -118,7 +114,6 @@ def update_players_message(game_code, new_player_id, creator_name):
             if len(players) > 1:
                 bot.send_message(player_id, text=f"Ждём, когда все зайдут и {creator_name} запустит игру")
 
-
             # Захватываем блокировку перед обновлением словаря
             with message_list_lock:
                 message_list_of_players[game_code][new_player_id] = message_id
@@ -133,9 +128,8 @@ def update_players_message(game_code, new_player_id, creator_name):
 
 def generate_game_code():
     code = ''.join(random.choices(string.digits, k=6))
-    #return code
+    # return code
     return "000000"
-
 
 
 # старт: присоединиться к игре или создать новую
@@ -149,13 +143,13 @@ def start(message):
     bot.send_message(message.chat.id, text="Добро пожаловать! Я мемобот:)", reply_markup=markup)
 
 
-#выход в главное меню и удаление игры из активных, если ушёл криэйтор
+# выход в главное меню и удаление игры из активных, если ушёл криэйтор
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('menu:'))
 def main_menu(callback_query):
     data = callback_query.data.split(':')
     player_id = callback_query.from_user.id
     game_code = data[1]
-    #удаляем прошлое сообщение
+    # удаляем прошлое сообщение
     message_id = callback_query.message.message_id
     bot.delete_message(player_id, message_id)
 
@@ -173,13 +167,13 @@ def main_menu(callback_query):
         del deck_of_meme_cards[game_code]
         del trash_memes[game_code]
 
-
     markup = types.InlineKeyboardMarkup(row_width=1)
     new_game_button = types.InlineKeyboardButton("Новая игра", callback_data="new_game")
     join_game_button = types.InlineKeyboardButton("Присоединиться к игре", callback_data="join_game")
     rules_button = types.InlineKeyboardButton("Правила игры", callback_data="rules")
     markup.add(new_game_button, join_game_button, rules_button)
     bot.send_message(player_id, text="А ну-ка, выбирай", reply_markup=markup)
+
 
 # правила игры
 @bot.callback_query_handler(func=lambda message: message.data == 'rules')
@@ -196,7 +190,7 @@ def rules(message):
     bot.send_message(player_id, f"ляля тут будут правила", reply_markup=markup)
 
 
-#смотрим на подписки юзера
+# смотрим на подписки юзера
 def get_user_subscriptions(user_id):
     connect = sqlite3.connect("db.db")
     cursor = connect.cursor()
@@ -206,6 +200,7 @@ def get_user_subscriptions(user_id):
 
     connect.close()
     return user_subscriptions
+
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('meme_tarif:'))
 def chose_tarif_meme(callback_query):
@@ -217,23 +212,23 @@ def chose_tarif_meme(callback_query):
         game_code = data[1]
         button = int(data[2])
 
-        #удаляем прошлое сообщение
+        # удаляем прошлое сообщение
         message_id = callback_query.message.message_id
-        #bot.delete_message(player_id, message_id)
+        # bot.delete_message(player_id, message_id)
         if button not in all_available_tarifs_memes[game_code]:
             robocassa(player_id, button, game_code)
         else:
-            if button not in nazat_tarifs_memes[game_code]: #кнопка ненажата -> нажата = зеленый
+            if button not in nazat_tarifs_memes[game_code]:  # кнопка ненажата -> нажата = зеленый
                 nazat_tarifs_memes[game_code].append(button)
-            else: #кнопка была нажата, теперь нет -> белый
+            else:  # кнопка была нажата, теперь нет -> белый
                 nazat_tarifs_memes[game_code].remove(button)
             logos = []
-            for number in range(5): #проходимся по всем кнопкам
-                if number in nazat_tarifs_memes[game_code]: #должна быть зелёной
+            for number in range(5):  # проходимся по всем кнопкам
+                if number in nazat_tarifs_memes[game_code]:  # должна быть зелёной
                     logos.append("🟢️ ")
-                elif number in all_available_tarifs_memes[game_code]: #доступна, но не нажата (белый)
+                elif number in all_available_tarifs_memes[game_code]:  # доступна, но не нажата (белый)
                     logos.append("⚪️ ")
-                else: #замок
+                else:  # замок
                     logos.append("💰")
 
             # выбор мемов
@@ -250,16 +245,17 @@ def chose_tarif_meme(callback_query):
             neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (250 шт.)", callback_data=neiro_meme)
             markup.row(demo)
             markup.add(base, cccp, cats, neiro)
-            #bot.send_message(player_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+            # bot.send_message(player_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
             '''for i in nazat_tarifs_memes[game_code]:
                 bot.send_message(player_id, str(i))
             bot.send_message(player_id, "---")'''
-            bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id, text="Приятель, тебе придётся выбрать набор мемов-картинок:",
+            bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id,
+                                  text="Приятель, тебе придётся выбрать набор мемов-картинок:",
                                   reply_markup=markup)
-            #bot.edit_message_text(chat_id=player_id, message_id=message_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+            # bot.edit_message_text(chat_id=player_id, message_id=message_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
 
 
-#из документации
+# из документации
 def calculate_signature(*args) -> str:
     """Create signature MD5.
     """
@@ -269,13 +265,13 @@ def calculate_signature(*args) -> str:
 # Формирование URL переадресации пользователя на оплату.
 
 def generate_payment_link(
-    merchant_login: str,  # Merchant login
-    merchant_password_1: str,  # Merchant password
-    cost: decimal,  # Cost of goods, RU
-    InvId: int,  # Invoice number
-    description: str,  # Description of the purchase
-    is_test = 1,
-    robokassa_payment_url = 'https://auth.robokassa.ru/Merchant/Index.aspx',
+        merchant_login: str,  # Merchant login
+        merchant_password_1: str,  # Merchant password
+        cost: decimal,  # Cost of goods, RU
+        InvId: int,  # Invoice number
+        description: str,  # Description of the purchase
+        is_test=1,
+        robokassa_payment_url='https://auth.robokassa.ru/Merchant/Index.aspx',
 ) -> str:
     """URL for redirection of the customer to the service.
     """
@@ -297,8 +293,8 @@ def generate_payment_link(
     return f'{robokassa_payment_url}?{parse.urlencode(data)}'
 
 
-
-all_names_of_tarifs = ['Демка', 'МЕМЫ: Весело и в точку!', 'МЕМЫ 2: СССР и 90-е', 'МЕМЫ 3: Котики и пр. нелюди', 'МЕМЫ НЕЙРО']
+all_names_of_tarifs = ['Демка', 'МЕМЫ: Весело и в точку!', 'МЕМЫ 2: СССР и 90-е', 'МЕМЫ 3: Котики и пр. нелюди',
+                       'МЕМЫ НЕЙРО']
 
 from dotenv import load_dotenv
 import os
@@ -307,8 +303,8 @@ from telebot import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from telebot.types import LabeledPrice
 
-
 flag_mes_oplat_id = {}
+
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('oplata:'))
 def oplata(callback_query):
@@ -317,7 +313,7 @@ def oplata(callback_query):
     global all_names_of_tarifs
     chat_id = callback_query.from_user.id
     days_text = data[1]
-    days_number = data[2] #1, 30, 365
+    days_number = data[2]  # 1, 30, 365
     price = int(data[3])
     price *= 100
     button = int(data[4])
@@ -330,11 +326,11 @@ def oplata(callback_query):
             i = 0
         if game_code in flag_mes_oplat_id:
             try:
-                bot.delete_message(chat_id, flag_mes_oplat_id[game_code]) #прошлая invoice
+                bot.delete_message(chat_id, flag_mes_oplat_id[game_code])  # прошлая invoice
             except:
                 i = 0
-            ids_3_otmena[game_code].pop(3) #попаем invoice
-        ids_3_otmena[game_code].pop(2) #попаем вернуться к выбору
+            # ids_3_otmena[game_code].pop(3) #попаем invoice
+        ids_3_otmena[game_code].pop(2)  # попаем вернуться к выбору
 
         if button != 1000:
             name_of_cards = all_names_of_tarifs[int(button)]
@@ -346,7 +342,6 @@ def oplata(callback_query):
             prices = [LabeledPrice(label=f'Все наборы на 1 {days_text}', amount=price)]
             descrip_text = f'💸 Приобрести ВСЕ наборы на 1 {days_text} 💸'
             title_text = 'ВСЕ наборы'
-
 
         call_data = f"pay_mem:{game_code}"
         markup = types.InlineKeyboardMarkup(row_width=1)
@@ -371,9 +366,10 @@ def oplata(callback_query):
                                      reply_markup=markup)
         message_3_id = message_3.message_id
 
-        ids_3_otmena[game_code].append(message_3_id) #вернуться
-        ids_3_otmena[game_code].append(invoice_message.message_id) # invoce
+        ids_3_otmena[game_code].append(message_3_id)  # вернуться
+        # ids_3_otmena[game_code].append(invoice_message.message_id) # invoce
         flag_double_oplata[game_code] = False
+
 
 def create_table():
     connect = sqlite3.connect("db.db")
@@ -385,15 +381,18 @@ def create_table():
                       tarif TEXT
                    )''')
     connect.commit()
+
+
 def add(user_id, user_name, tarif, expiration_date):
     create_table()
-    #подключаем нашу базу данных
+    # подключаем нашу базу данных
     connect = sqlite3.connect("db.db")
-    #курсор для работы с таблицами
+    # курсор для работы с таблицами
     cursor = connect.cursor()
     cursor.execute('INSERT INTO subscriptions (user_id, user_name, tarif, expiration_date) VALUES (?, ?, ?, ?)',
                    (user_id, user_name, tarif, expiration_date))
     connect.commit()
+
 
 @bot.message_handler(content_types=['successful_payment'])
 def handle_successful_payment(message):
@@ -404,7 +403,7 @@ def handle_successful_payment(message):
     player_nick = useful_info_payment[1]
     button = int(useful_info_payment[2])
     days = int(useful_info_payment[3])
-    bot.send_message(message.chat.id, 'Оплата прошла успешно!')
+    mess = bot.send_message(message.chat.id, 'Оплата прошла успешно!')
 
     # Получить текущую дату и время
     current_datetime = datetime.datetime.now()
@@ -428,12 +427,14 @@ def handle_successful_payment(message):
 
 
 flag_double_oplata = {}
-#робокасса (менюшки с выбором лотов)
+
+
+# робокасса (менюшки с выбором лотов)
 
 def robocassa(user_id, button, game_code):
     global ids_3_otmena
 
-    #удаляем кнопку готово
+    # удаляем кнопку готово
     if robocassa_first_time[game_code]:
         gotovo_id = ids_3_gotovo[game_code][2]
         ids_3_gotovo[game_code].pop()
@@ -445,9 +446,9 @@ def robocassa(user_id, button, game_code):
     callback_oplata_300 = f"oplata:месяц:{30}:{300}:{button}:{game_code}"
     callback_oplata_900 = f"oplata:год:{365}:{900}:{button}:{game_code}"
 
-    pay_button_day = types.InlineKeyboardButton(text=f"день: 100 ₽.", callback_data = callback_oplata_100)
-    pay_button_month = telebot.types.InlineKeyboardButton(text=f"мес: 300 ₽.", callback_data = callback_oplata_300)
-    pay_button_year = telebot.types.InlineKeyboardButton(text=f"год: 900 ₽.", callback_data = callback_oplata_900)
+    pay_button_day = types.InlineKeyboardButton(text=f"день: 100 ₽.", callback_data=callback_oplata_100)
+    pay_button_month = telebot.types.InlineKeyboardButton(text=f"мес: 300 ₽.", callback_data=callback_oplata_300)
+    pay_button_year = telebot.types.InlineKeyboardButton(text=f"год: 900 ₽.", callback_data=callback_oplata_900)
 
     keyboard_1.add(pay_button_day, pay_button_month, pay_button_year)
     if button == 1:
@@ -461,16 +462,16 @@ def robocassa(user_id, button, game_code):
     if not robocassa_first_time[game_code]:
         try:
             message_1 = bot.edit_message_text(chat_id=user_id, message_id=ids_3_otmena[game_code][0],
-                                         text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:",
-                                         reply_markup=keyboard_1, parse_mode="HTML")
+                                              text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:",
+                                              reply_markup=keyboard_1, parse_mode="HTML")
             message_1_id = ids_3_otmena[game_code][0]
         except:
             message_1_id = ids_3_otmena[game_code][0]
     else:
-        message_1 = bot.send_message(user_id, text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:", reply_markup=keyboard_1, parse_mode="HTML")
+        message_1 = bot.send_message(user_id,
+                                     text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:",
+                                     reply_markup=keyboard_1, parse_mode="HTML")
         message_1_id = message_1.message_id
-
-
 
     # 1000 - button на все тарифы
     callback_oplata_600_all = f"oplata:день:{1}:{600}:{1000}:{game_code}"
@@ -487,11 +488,11 @@ def robocassa(user_id, button, game_code):
         message_2_id = ids_3_otmena[game_code][1]
     else:
         message_2 = bot.send_message(user_id,
-                     text="Купить <b>полный доступ</b> ко всем существующим и будущим сетам на период:",
-                     reply_markup=keyboard_2, parse_mode="HTML")
+                                     text="Купить <b>полный доступ</b> ко всем существующим и будущим сетам на период:",
+                                     reply_markup=keyboard_2, parse_mode="HTML")
         message_2_id = message_2.message_id
 
-    #call_data = f"otmena_pokupki:{game_code}"
+    # call_data = f"otmena_pokupki:{game_code}"
     call_data = f"pay_mem:{game_code}"
     markup = types.InlineKeyboardMarkup(row_width=1)
     mozno_obnovlat[game_code] = True
@@ -502,13 +503,11 @@ def robocassa(user_id, button, game_code):
         message_3_id = ids_3_otmena[game_code][2]
     else:
         robocassa_first_time[game_code] = False
-        message_3 = bot.send_message(chat_id=user_id, text="Чтобы вернуться к выбору сетов, нажми на кнопку", reply_markup=markup)
+        message_3 = bot.send_message(chat_id=user_id, text="Чтобы вернуться к выбору сетов, нажми на кнопку",
+                                     reply_markup=markup)
         message_3_id = message_3.message_id
 
-
     ids_3_otmena[game_code] = [message_1_id, message_2_id, message_3_id]
-
-
 
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('pay_mem:'))
@@ -548,8 +547,6 @@ def payment(callback_query):
         ids_3_gotovo[game_code].append(message_id)  # добавили 3 элементом id сообщения "готово"
 
 
-
-
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('otmena_pokupki:'))
 def payment(callback_query):
     global mozno_li_nazat_gotovo
@@ -581,10 +578,7 @@ def process_pre_checkout_query(pre_checkout_query):
     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 
-
-
-
-#ситуации
+# ситуации
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('sit_tarif:'))
 def chose_tarif_sit(callback_query):
     with message_list_lock:
@@ -595,24 +589,22 @@ def chose_tarif_sit(callback_query):
         game_code = data[1]
         button = int(data[2])
 
-
-
         if button not in all_available_tarifs_sit[game_code]:
-            #bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
-            #робокасса
+            # bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
+            # робокасса
             robocassa(player_id, button, game_code)
         else:
-            if button not in nazat_tarifs_sit[game_code]: #кнопка ненажата -> нажата = зеленый
+            if button not in nazat_tarifs_sit[game_code]:  # кнопка ненажата -> нажата = зеленый
                 nazat_tarifs_sit[game_code].append(button)
-            else: #кнопка была нажата, теперь нет -> белый
+            else:  # кнопка была нажата, теперь нет -> белый
                 nazat_tarifs_sit[game_code].remove(button)
             logos = []
-            for number in range(5): #проходимся по всем кнопкам
-                if number in nazat_tarifs_sit[game_code]: #должна быть зелёной
+            for number in range(5):  # проходимся по всем кнопкам
+                if number in nazat_tarifs_sit[game_code]:  # должна быть зелёной
                     logos.append("🟢️ ")
-                elif number in all_available_tarifs_sit[game_code]: #доступна, но не нажата (белый)
+                elif number in all_available_tarifs_sit[game_code]:  # доступна, но не нажата (белый)
                     logos.append("⚪️ ")
-                else: #замок
+                else:  # замок
                     logos.append("💰")
 
             # выбор мемов
@@ -629,12 +621,12 @@ def chose_tarif_sit(callback_query):
             neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (100 шт.)", callback_data=neiro_sit)
             markup.row(demo)
             markup.add(base, cccp, cats, neiro)
-            bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id, text=f"И ещё потрудись выбрать карты ситуаций:",
+            bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id,
+                                  text=f"И ещё потрудись выбрать карты ситуаций:",
                                   reply_markup=markup)
 
 
-
-#выбор колоды мемов и ситуаций
+# выбор колоды мемов и ситуаций
 def chose_deck_of_cards(player_id, game_code):
     global all_available_tarifs_memes
     global nazat_tarifs_memes
@@ -643,8 +635,8 @@ def chose_deck_of_cards(player_id, game_code):
     global nazat_tarifs_sit
     # 0-id, 1-name, 2-tarif, 3-data
 
-    #add(player_id, "sakuharo", "+", "10.08.2024 15:30:00")
-    #add(player_id, "sakuharo", "Котики", "10.08.2021 15:30:00")
+    # add(player_id, "sakuharo", "+", "10.08.2024 15:30:00")
+    # add(player_id, "sakuharo", "Котики", "10.08.2021 15:30:00")
     # смотрим на подписки игрока
     user_subscriptions = get_user_subscriptions(player_id)
     '''for i in user_subscriptions:
@@ -652,7 +644,7 @@ def chose_deck_of_cards(player_id, game_code):
     nazat_tarifs_memes[game_code] = [0]
     nazat_tarifs_sit[game_code] = [0]
 
-    #все доступные тарифы 0,1,2,3,4
+    # все доступные тарифы 0,1,2,3,4
     all_available_tarifs_memes[game_code] = [0]
     all_available_tarifs_sit[game_code] = [0]
 
@@ -675,31 +667,35 @@ def chose_deck_of_cards(player_id, game_code):
         # Получить текущую дату и время
         current_datetime = datetime.datetime.now()
 
-        tarifs_and_data = {} #тарифы - ключи, даты-values
+        tarifs_and_data = {}  # тарифы - ключи, даты-values
         for raw in user_subscriptions:
-            #добавляем тариф
+            # добавляем тариф
             if raw[2] not in tarifs_and_data:
                 tarifs_and_data[raw[2]] = [raw[3]]
-            #если несколь дат, то добавляем и сортируем
+            # если несколь дат, то добавляем и сортируем
             else:
                 tarifs_and_data[raw[2]].append(raw[3])
                 tarifs_and_data[raw[2]].sort()
-        if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
+        if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1],
+                                                                    "%d.%m.%Y %H:%M:%S") > current_datetime:
             base = types.InlineKeyboardButton("⚪️ База (250 шт.)", callback_data=base_meme)
             all_available_tarifs_memes[game_code].append(1)
         else:
             base = types.InlineKeyboardButton("💰База (250 шт.)", callback_data=base_meme)
-        if "СССР" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["СССР"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
+        if "СССР" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["СССР"][-1],
+                                                                    "%d.%m.%Y %H:%M:%S") > current_datetime:
             cccp = types.InlineKeyboardButton("⚪️ СССР (250 шт.)", callback_data=cccp_meme)
             all_available_tarifs_memes[game_code].append(2)
         else:
             cccp = types.InlineKeyboardButton("💰СССР (250 шт.)", callback_data=cccp_meme)
-        if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
+        if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1],
+                                                                      "%d.%m.%Y %H:%M:%S") > current_datetime:
             cats = types.InlineKeyboardButton("⚪️ Котики (250 шт.)", callback_data=cats_meme)
             all_available_tarifs_memes[game_code].append(3)
         else:
             cats = types.InlineKeyboardButton("💰Котики (250 шт.)", callback_data=cats_meme)
-        if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1], "%d.%m.%Y %H:%M:%S") > current_datetime:
+        if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1],
+                                                                     "%d.%m.%Y %H:%M:%S") > current_datetime:
             neiro = types.InlineKeyboardButton("⚪ НЕЙРО (250 шт.)", callback_data=neiro_meme)
             all_available_tarifs_memes[game_code].append(4)
         else:
@@ -707,8 +703,6 @@ def chose_deck_of_cards(player_id, game_code):
     markup.row(demo)
     markup.add(base, cccp, cats, neiro)
     message = bot.send_message(player_id, f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
-
-
 
     # выбор ситуаций
     demo_sit = f"sit_tarif:{game_code}:{0}"
@@ -768,20 +762,17 @@ def chose_deck_of_cards(player_id, game_code):
     return (message.message_id, message2.message_id)
 
 
-
-
 # новая игра
 @bot.callback_query_handler(func=lambda message: message.data == 'new_game')
 def new_game(message):
     player_id = message.message.chat.id
-    #user_id = message.from_user.id
+    # user_id = message.from_user.id
     pl_name = message.from_user.first_name
     game_code = generate_game_code()
     ids_3_gotovo[game_code] = []
 
     message_id = message.message.message_id
     bot.delete_message(player_id, message_id)
-
 
     # Сохраняем информацию об игре
     active_games[game_code] = {'creator': player_id, 'players': [player_id], 'usernames': [pl_name]}
@@ -790,7 +781,7 @@ def new_game(message):
     id_and_names[game_code][player_id] = pl_name
 
     # выбор колоды мемов и ситуаций
-    message_id_1,  message_id_2 = chose_deck_of_cards(player_id, game_code)
+    message_id_1, message_id_2 = chose_deck_of_cards(player_id, game_code)
     ids_3_gotovo[game_code].append(message_id_1)
     ids_3_gotovo[game_code].append(message_id_2)
 
@@ -816,7 +807,6 @@ def podtverdit_choices(callback_query):
         message_id_1 = ids_3_gotovo[game_code][0]
         message_id_2 = ids_3_gotovo[game_code][1]
 
-
         # удаляем прошлое сообщение
         message_id = callback_query.message.message_id
         bot.delete_message(player_id, message_id_1)
@@ -828,13 +818,13 @@ def podtverdit_choices(callback_query):
         generate_sit_links(game_code)
 
         # Отправляем ссылку создателю игры
-        message_1 = bot.send_message(player_id, f"Вы создали новую игру! Поделитесь кодом со своими друзьями: {game_code}")
+        message_1 = bot.send_message(player_id,
+                                     f"Вы создали новую игру! Поделитесь кодом со своими друзьями: {game_code}")
         message_id_1 = message_1.message_id
 
         creator_id = active_games[game_code]['creator']
         create_players_message(game_code, creator_id)
         message_id_2 = message_list_of_players[game_code][creator_id]
-
 
         markup = types.InlineKeyboardMarkup(row_width=2)
         callback_data_start = f"start:{game_code}:{message_id_1}"
@@ -857,7 +847,7 @@ def drop(callback_query):
     message_id_2 = data[3]
     if mozno_nazad_v_menu[game_code]:
         mozno_nazad_v_menu[game_code] = False
-        #удаляем прошлое сообщение
+        # удаляем прошлое сообщение
         message_id = callback_query.message.message_id
         try:
             bot.delete_message(player_id, int(message_id_1))
@@ -891,8 +881,6 @@ def drop(callback_query):
         rules_button = types.InlineKeyboardButton("Правила игры", callback_data="rules")
         markup.add(new_game_button, join_game_button, rules_button)
         bot.send_message(player_id, text="А ну-ка, выбирай", reply_markup=markup)
-
-
 
 
 @bot.callback_query_handler(func=lambda message: message.data == 'join_game')
@@ -956,10 +944,9 @@ def start_game(callback_query):
     if game_code in nazat_tarifs_memes and len(nazat_tarifs_memes[game_code]) == 0:
         bot.send_message(player_id, "Нужно выбрать хотябы 1 набор, чтобы начать игру.")
     else:
-    #message_id_2 = data[3]
+        # message_id_2 = data[3]
 
-
-        #основное тело
+        # основное тело
         chat_id = callback_query.message.chat.id
         game_code = None
         for code, game in active_games.items():
@@ -980,9 +967,9 @@ def start_game(callback_query):
 
                 send_message_to_players(game_code, "Игра началась!")
                 rating[game_code] = {}
-                for player in players: #добавляем всех в рейтинг
+                for player in players:  # добавляем всех в рейтинг
                     rating[game_code][player] = 0
-                if len(players) < 4: #если мало игроков, то добавляем бота
+                if len(players) < 4:  # если мало игроков, то добавляем бота
                     rating[game_code]["bot"] = 0
                 players_hand_cards(game_code)
 
@@ -1060,8 +1047,9 @@ def generate_sit_links(game_code):
     deck_of_sit_cards[game_code] = links  # колода карт sit в игре
     trash_sit[game_code] = []  # сброс
 
-#список ссылок на действующие мемы
-def generate_meme_links(game_code): #nabor-список наборов [0,1,2,3,4]
+
+# список ссылок на действующие мемы
+def generate_meme_links(game_code):  # nabor-список наборов [0,1,2,3,4]
     global deck_of_meme_cards
     global trash_memes
     global nazat_tarifs_memes
@@ -1121,15 +1109,17 @@ def generate_meme_links(game_code): #nabor-список наборов [0,1,2,3,
                 link4 = f"{url_4}N{str(i).zfill(5)}.jpg"
                 links.append(link4)
     deck_of_meme_cards[game_code] = links  # колода карт мемов в игре
-    trash_memes[game_code] = [] #сброс
+    trash_memes[game_code] = []  # сброс
 
-#выбор ситуации
+
+# выбор ситуации
 def random_choice_of_photo(game_code):
     global deck_of_sit_cards
     global trash_sit
 
     if len(deck_of_sit_cards[game_code]) == 0:
-        send_message_to_players(game_code, "Ситуации закончились. Теперь вы будете видеть ситуации из колоды сброса. (Можно докупить наборы карт, чтобы играть было ещё веселей!")
+        send_message_to_players(game_code,
+                                "Ситуации закончились. Теперь вы будете видеть ситуации из колоды сброса. (Можно докупить наборы карт, чтобы играть было ещё веселей!")
         deck_of_sit_cards[game_code] = trash_sit
         trash_sit[game_code] = []
 
@@ -1137,6 +1127,7 @@ def random_choice_of_photo(game_code):
     deck_of_sit_cards[game_code].remove(random_photo_link)
     trash_sit[game_code].append(random_photo_link)
     return random_photo_link
+
 
 # отправить фото в игру
 def send_photo_to_players(game_code, photo_url):
@@ -1155,7 +1146,7 @@ def download_situation(link):
     return sit_photo_io
 
 
-#отправка ситуаций
+# отправка ситуаций
 def send_situation(game_code):
     link = random_choice_of_photo(game_code)
 
@@ -1166,29 +1157,29 @@ def send_situation(game_code):
         future = executor.submit(download_situation, link)
         situation_card = future.result()  # Get the result from the future object
         cards_on_table[game_code]['photos_on_table'].append(situation_card.getvalue())
-        #chosen_photo = BytesIO(cards_on_table[game_code]['photos_on_table'][0]) - incorrect
+        # chosen_photo = BytesIO(cards_on_table[game_code]['photos_on_table'][0]) - incorrect
 
     # запонимаени id situation чтобы удалить потом
 
-    #send_photo_to_players
+    # send_photo_to_players
     players = active_games[game_code]['players']
     for player_id in players:
         sit = bot.send_photo(player_id, cards_on_table[game_code]['photos_on_table'][0])
 
 
-
 ### разыгровка руки
 
 
-#обновления ссылок
+# обновления ссылок
 
 def random_choice_of_link_meme(game_code):
     global deck_of_meme_cards
     global trash_memes
-    #ссылки на все доступные мемы
+    # ссылки на все доступные мемы
     game_meme_choice = deck_of_meme_cards[game_code]
     if len(game_meme_choice) == 0:
-        send_message_to_players(game_code, "Мемы закончились. Поэтому вы продолжите играть с мемами из колоды сброса. (Дополнительные картинки-мемы можно купить, чтобы игра была ещё интересней!)")
+        send_message_to_players(game_code,
+                                "Мемы закончились. Поэтому вы продолжите играть с мемами из колоды сброса. (Дополнительные картинки-мемы можно купить, чтобы игра была ещё интересней!)")
         deck_of_meme_cards[game_code] = trash_memes[game_code]
         trash_memes[game_code] = []
     else:
@@ -1196,6 +1187,7 @@ def random_choice_of_link_meme(game_code):
         deck_of_meme_cards[game_code].remove(random_meme_link)
         trash_memes[game_code].append(random_meme_link)
         return random_meme_link
+
 
 # сделать ссылку на фото
 '''def create_link_big_meme(number):
@@ -1215,46 +1207,45 @@ def random_choice_of_link_meme(game_code):
         #del chosen_memes[game_code][random_photo_number]
         return random_photo_number'''
 
-#плашка 1/4
+# плашка 1/4
 plashka_url_4 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/cursor275.jpg"
 plashka_response_4 = requests.get(plashka_url_4)
-#if plashka_response_4.status_code == 200:
+# if plashka_response_4.status_code == 200:
 plashka_4 = Image.open(BytesIO(plashka_response_4.content))
 
-#плагшка 1/5
+# плагшка 1/5
 plashka_url_5 = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/cursor128.jpg"
 plashka_response_5 = requests.get(plashka_url_5)
 plashka_5 = Image.open(BytesIO(plashka_response_5.content))
 
-#корона
+# корона
 crown_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/crown.png"
 crown_response = requests.get(crown_url)
 crown = Image.open(BytesIO(crown_response.content))
 
-#звезда
+# звезда
 star_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/star.png"
 star_response = requests.get(star_url)
 star = Image.open(BytesIO(star_response.content))
 
 
-#вставляем плашку
-#position = (100, 200)
+# вставляем плашку
+# position = (100, 200)
 def insert_image_to_main(image, position, ad_param):
     main_image = Image.open(image)
-    if ad_param == 5: #hand
+    if ad_param == 5:  # hand
         main_image.paste(plashka_5, position)
-    elif ad_param == 4: #4 голосовалка
+    elif ad_param == 4:  # 4 голосовалка
         main_image.paste(plashka_4, position)
     elif ad_param == "star":
         if main_image.mode != 'RGBA':
             main_image = main_image.convert('RGBA')
         main_image.paste(star, position, mask=star)
-    else: #crown
+    else:  # crown
         if main_image.mode != 'RGBA':
             main_image = main_image.convert('RGBA')
 
         main_image.paste(crown, position, mask=crown)
-
 
     new_image = BytesIO()
     main_image.save(new_image, format='PNG')
@@ -1262,12 +1253,11 @@ def insert_image_to_main(image, position, ad_param):
 
     return new_image
 
+
 def download_image(url):
     response = requests.get(url)
     image = Image.open(BytesIO(response.content))
     return image
-
-
 
 
 # составляем колаж руки
@@ -1294,12 +1284,12 @@ def combine_small_pic(user_id, small_photos_links):
 
     # Вставка каждой уменьшенной фотографии на холст
     for i, image in enumerate(small_images):
-        if image.height > image.width: #вертикальная
+        if image.height > image.width:  # вертикальная
             height = 461 // 5
             izmenil = 640 // height
             width = 461 // izmenil
             image.thumbnail((width, height))
-            #image.thumbnail((image.height // 5, image.width // 5))
+            # image.thumbnail((image.height // 5, image.width // 5))
             x_offset = ((i % 5) * lil_space_width) + (lil_space_width - image.width) // 2
         else:  # горизонтальная
             image.thumbnail((640 // 5, 461 // 5))
@@ -1317,20 +1307,16 @@ def combine_small_pic(user_id, small_photos_links):
     return image_buffer
 
 
-
-
-
 def top_plus_bottom(main_photo, bottom):
     # Ссылка на большое фото
-    #main_photo_link = create_link_big_meme(main_photo_number)
+    # main_photo_link = create_link_big_meme(main_photo_number)
 
     # Загрузка и объединение изображений
-    #main_image = Image.open(BytesIO(requests.get(main_photo_link).content))
+    # main_image = Image.open(BytesIO(requests.get(main_photo_link).content))
     main_image = Image.open(main_photo)
     bottom_image = Image.open(bottom)
 
     # Проверка размеров изображений и изменение размеров, если необходимо
-
 
     if main_image.height > main_image.width:
         new_width = round(main_image.width * (548 / main_image.height))
@@ -1343,11 +1329,12 @@ def top_plus_bottom(main_photo, bottom):
         combined_image = Image.new('RGB', (combined_width, combined_height), (255, 255, 255))
         combined_image.paste(main_image, (whitespace_width, 0))
 
-        #combined_image = Image.new('RGB', (bottom_image.width, main_image.height + bottom_image.height))
-        #combined_image.paste(main_image, (0, 0))
+        # combined_image = Image.new('RGB', (bottom_image.width, main_image.height + bottom_image.height))
+        # combined_image.paste(main_image, (0, 0))
     else:
         if main_image.width != bottom_image.width:
-            resized_bottom_image = bottom_image.resize((main_image.width, bottom_image.height*main_image.width//bottom_image.width))
+            resized_bottom_image = bottom_image.resize(
+                (main_image.width, bottom_image.height * main_image.width // bottom_image.width))
         else:
             resized_bottom_image = bottom_image
         # Создание нового изображения с объединенными фото
@@ -1364,7 +1351,6 @@ def top_plus_bottom(main_photo, bottom):
 
 
 def left_plus_right(game_code, situation, meme):
-
     image1 = Image.open(situation)
     image2 = Image.open(meme)
 
@@ -1373,7 +1359,7 @@ def left_plus_right(game_code, situation, meme):
     max_width = image2.width
     max_height = image1.height
 
-    if image2.height > image2.width: #вертикаль
+    if image2.height > image2.width:  # вертикаль
         table_width = image1.width + 640
 
     else:
@@ -1384,13 +1370,13 @@ def left_plus_right(game_code, situation, meme):
     # Создаем белое изображение
     table_image = Image.new('RGB', (table_width, table_height), (255, 255, 255))
 
-    if image2.height > image2.width: #вертикаль
+    if image2.height > image2.width:  # вертикаль
         # Вычисляем координаты для размещения фотографий по центру
         x_offset_image1 = 0
         y_offset_image1 = 0
         x_offset_image2 = image1.width + (table_width - image1.width - image2.width) // 2
 
-        #x_offset_image2 = x_offset_image1 + image1.width
+        # x_offset_image2 = x_offset_image1 + image1.width
         y_offset_image2 = (table_height - image2.height) // 2
     else:
         # Вычисляем координаты для размещения фотографий по центру
@@ -1410,7 +1396,7 @@ def left_plus_right(game_code, situation, meme):
     return image_io
 
 
-def all_cards_on_the_table(game_code, memes): #дается список фоток
+def all_cards_on_the_table(game_code, memes):  # дается список фоток
     # for mem in memes:
     #     send_message_to_players(game_code, str(type(mem)))
     #     if (type(mem) == int):
@@ -1429,7 +1415,7 @@ def all_cards_on_the_table(game_code, memes): #дается список фот�
     max_height = 461
     kolvo_rows = math.ceil(len(images) / photos_per_row)
     if kolvo_rows == 1:
-        collage_height = kolvo_rows * max_height//photos_per_row + 5
+        collage_height = kolvo_rows * max_height // photos_per_row + 5
     else:
         collage_height = kolvo_rows * max_height // photos_per_row + 24
     collage_width = 640
@@ -1439,15 +1425,15 @@ def all_cards_on_the_table(game_code, memes): #дается список фот�
     # Вставка каждой уменьшенной фотографии на холст
     prev_height = 0
     for i, image in enumerate(images):
-        if image.height > image.width: #вертикальная
+        if image.height > image.width:  # вертикальная
             image.thumbnail((image.height // photos_per_row, image.width // photos_per_row))
             x_offset = ((i % photos_per_row) * lil_space_width) + (lil_space_width - image.width) // 2
-        else: # горизонтальная
-            image.thumbnail((image.width//photos_per_row, image.height//photos_per_row))
+        else:  # горизонтальная
+            image.thumbnail((image.width // photos_per_row, image.height // photos_per_row))
             x_offset = (i % photos_per_row) * lil_space_width
 
-        if i % photos_per_row == 0 and i != 0: #перешли на новую строку
-            prev_height += max_height//photos_per_row + 12
+        if i % photos_per_row == 0 and i != 0:  # перешли на новую строку
+            prev_height += max_height // photos_per_row + 12
         y_offset = prev_height
         # Вставка уменьшенной фотографии на холст
         collage.paste(image, (x_offset, y_offset))
@@ -1458,7 +1444,9 @@ def all_cards_on_the_table(game_code, memes): #дается список фот�
     return image_io
 
 
-voted_battle_cards = {} #карты, за которые проголосовали
+voted_battle_cards = {}  # карты, за которые проголосовали
+
+
 # отправка голосования
 def progolosoval(player_id, game_code, photos_per_row, kolvo_empty, message_idd, kolvo_buttons):
     global all_combined_images
@@ -1478,18 +1466,16 @@ def progolosoval(player_id, game_code, photos_per_row, kolvo_empty, message_idd,
                 y = -30
                 whole_picture = add_mem_plashka(game_code, numb_za_kot_progolos - 1, (x, y))
 
-
-
                 with message_list_lock:
                     znak = 0
                     if game_code not in voted_players:
                         voted_players[game_code] = [player_id]
                         znak = 1
-                        #bot.send_message(player_id, "Ваш голос учтён первым. Посмотрим, что скажут другие игроки 🤔"
+                        # bot.send_message(player_id, "Ваш голос учтён первым. Посмотрим, что скажут другие игроки 🤔"
                         all_combined_images[game_code] = []
                     elif player_id not in voted_players[game_code]:
                         voted_players[game_code].append(player_id)
-                        #bot.send_message(player_id, "Ваш голос учтён. Посмотрим, что скажут другие игроки 🤔")
+                        # bot.send_message(player_id, "Ваш голос учтён. Посмотрим, что скажут другие игроки 🤔")
                         znak = 1
 
                 if znak == 1:
@@ -1531,7 +1517,6 @@ def progolosoval(player_id, game_code, photos_per_row, kolvo_empty, message_idd,
         send_message_to_players(game_code, "Все игроки проголосовали! А вот и рейтинг мемолюбов:")
 
         progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty)
-
 
 
 def progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty):
@@ -1637,7 +1622,7 @@ def progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty):
         combined_image_io = copy.deepcopy(resized_com_star)
         # with message_list_lock:
         messag_id = golosov_mes_ids[game_code][pl_id]
-        #messag_id = int(messages_ids[game_code][pl_id])
+        # messag_id = int(messages_ids[game_code][pl_id])
         if messag_id is not None:
             # bot.send_photo(pl_id, combined_image_io)
             bot.edit_message_media(
@@ -1676,12 +1661,13 @@ def progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty):
     # новый раунд
     players_hand_cards(game_code)
 
-golosov_mes_ids = {} #словарь со всеми id стола для замены потом на результаты
+
+golosov_mes_ids = {}  # словарь со всеми id стола для замены потом на результаты
+
 
 # callback для table
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('choose:'))
 def choose_callback_handler(callback_query):
-
     data = callback_query.data.split(':')
     player_id = callback_query.message.chat.id
     game_code = data[1]
@@ -1690,15 +1676,14 @@ def choose_callback_handler(callback_query):
     kolvo_empty = int(data[4])
     message_idd = callback_query.message.message_id
 
-
     if additional_parameter.isdigit():  # число
         button_number = int(additional_parameter) + 1  # тк 0 карта-ситуация
-        #второй раз нажать на ту же кнопку
+        # второй раз нажать на ту же кнопку
         mozno_li_nazat = True
         if battle_cards[game_code][player_id] == button_number:
             mozno_li_nazat = False
         else:
-            battle_cards[game_code][player_id] = button_number # чел выбрал эту карту
+            battle_cards[game_code][player_id] = button_number  # чел выбрал эту карту
         if mozno_li_nazat:
             # позиция - большой  мем memes[button_number]
             num_buttons = len(cards_on_table[game_code]['photos_on_table']) - 2
@@ -1713,19 +1698,19 @@ def choose_callback_handler(callback_query):
             buttons = []
             numb_za_kot_progolos = battle_cards[game_code][player_id]
             for i, callback_data in enumerate(callback_data_list):
-                cur = cards_on_table[game_code]['photos_on_table'][i+1][0]
+                cur = cards_on_table[game_code]['photos_on_table'][i + 1][0]
 
                 if cur == player_id:
-                    if i+1 == numb_za_kot_progolos:
+                    if i + 1 == numb_za_kot_progolos:
                         button_text = "твой👆"
                     else:
                         button_text = "твой"
-                elif i+1 == numb_za_kot_progolos:
-                    button_text = f"{i+1}👆"
+                elif i + 1 == numb_za_kot_progolos:
+                    button_text = f"{i + 1}👆"
                 else:
-                    button_text = str(i+1)
+                    button_text = str(i + 1)
 
-                #button_text = "твой мем" if cur == player_id else str(i+1)
+                # button_text = "твой мем" if cur == player_id else str(i+1)
 
                 # Создаем кнопку и добавляем ее в список кнопок
                 button = types.InlineKeyboardButton(button_text, callback_data=callback_data)
@@ -1754,7 +1739,7 @@ def choose_callback_handler(callback_query):
                 y = blank_com.height - 28
                 x = blank_com.width // 4 * (button_number - 4 - 1)
 
-            whole_picture = add_mem_plashka(game_code, numb_za_kot_progolos-1, (x, y))
+            whole_picture = add_mem_plashka(game_code, numb_za_kot_progolos - 1, (x, y))
             whole_picture_ = Image.open(whole_picture)
             new_width = 640
             new_height = int(new_width / whole_picture_.width * whole_picture_.height)
@@ -1768,7 +1753,7 @@ def choose_callback_handler(callback_query):
             )
 
     # elif additional_parameter == 'zero': # Обработка запроса для пустых кнопок
-        # send_message_to_players(game_code, "zer")
+    # send_message_to_players(game_code, "zer")
 
     elif additional_parameter == 'vote':
         num_buttons = len(cards_on_table[game_code]['photos_on_table']) - 2
@@ -1776,7 +1761,7 @@ def choose_callback_handler(callback_query):
 
 
 def situation_plus_bar_blank(game_code):
-    #cards_on_table[game_code]['photos_on_table']
+    # cards_on_table[game_code]['photos_on_table']
 
     situation = Image.open(io.BytesIO(cards_on_table[game_code]['photos_on_table'][0]))
     new_width = 479
@@ -1803,17 +1788,16 @@ def situation_plus_bar_blank(game_code):
     table_image.paste(resized_sit, (x_offset_image1, y_offset_image1))
     table_image.paste(resized_bar, (x_offset_image2, y_offset_image2))
 
-
     image_io = BytesIO()
     table_image.save(image_io, format='PNG')
     image_io.seek(0)
 
     return image_io
 
-def add_mem_plashka(game_code, number, position): #от 0
+
+def add_mem_plashka(game_code, number, position):  # от 0
     blank = Image.open(io.BytesIO(blank_table[game_code]))
     mem = Image.open(io.BytesIO(cards_on_table[game_code]['photos_on_table'][number + 1][1]))
-
 
     blank.paste(plashka_4, position)
 
@@ -1838,11 +1822,9 @@ def add_mem_plashka(game_code, number, position): #от 0
     # Размещаем фотографии на белом фоне
     blank.paste(resized_mem, (x_offset_image2, y_offset_image2))
 
-
     image_io = BytesIO()
     blank.save(image_io, format='PNG')
     image_io.seek(0)
-
 
     return image_io
 
@@ -1850,7 +1832,8 @@ def add_mem_plashka(game_code, number, position): #от 0
 stop_waiting_meme_chose = {}
 stop_waiting_golosov = {}
 
-#разыгровка карт
+
+# разыгровка карт
 def table(player_id, game_code):
     battle_cards[game_code] = {}
     voted_battle_cards[game_code] = {}
@@ -1860,7 +1843,7 @@ def table(player_id, game_code):
     players = active_games[game_code]['players']
     active_players = players_order[game_code]
 
-    #добавляем рандомные фотки
+    # добавляем рандомные фотки
     if len(active_players) < 4:
         if players_hand[game_code]['round'] == 1:
             send_message_to_players(game_code,
@@ -1870,7 +1853,7 @@ def table(player_id, game_code):
             features = {}
             big_images_bynumb = OrderedDict()
             cards_links = []
-            #for i in range (8 - len(players)):
+            # for i in range (8 - len(players)):
             for i in range(4 - len(active_players)):
                 card_link = random_choice_of_link_meme(game_code)
                 cards_links.append(card_link)
@@ -1892,8 +1875,7 @@ def table(player_id, game_code):
     cards_on_table[game_code]['photos_on_table'][1:] = rest_of_list
 
     situation_card = cards_on_table[game_code]['photos_on_table'][0]
-    #перемешиваем все мемы. на 0 месте остаётся ситуация
-
+    # перемешиваем все мемы. на 0 месте остаётся ситуация
 
     # переделываем склейку, делаем blank ситуация + бар
     '''# верхняя часть стола, первоначальная позциия
@@ -1910,11 +1892,10 @@ def table(player_id, game_code):
     # добавляем бар ко всем картам (ситуация, карты, бар)
     cards_on_table[game_code]['photos_on_table'].append(low_pic.getvalue())
 
-    #генерим склейку
-    blank = situation_plus_bar_blank (game_code)
+    # генерим склейку
+    blank = situation_plus_bar_blank(game_code)
 
     blank_table[game_code] = blank.getvalue()
-
 
     # добавляем 0 позицию (плашку и мем)
     x = 0
@@ -1956,14 +1937,14 @@ def table(player_id, game_code):
             for i, callback_data in enumerate(callback_data_list):
                 cur = cards_on_table[game_code]['photos_on_table'][i + 1][0]
                 if cur == cur_player:
-                    if i+1 == numb_za_kot_progolos:
+                    if i + 1 == numb_za_kot_progolos:
                         button_text = "твой👆"
                     else:
                         button_text = "твой"
-                elif  i+1 == numb_za_kot_progolos:
-                    button_text = f"{i+1}👆"
+                elif i + 1 == numb_za_kot_progolos:
+                    button_text = f"{i + 1}👆"
                 else:
-                    button_text = str(i+1)
+                    button_text = str(i + 1)
                 # Создаем кнопку и добавляем ее в список кнопок
                 button = types.InlineKeyboardButton(button_text, callback_data=callback_data)
                 buttons.append(button)
@@ -1982,11 +1963,12 @@ def table(player_id, game_code):
                 buttons.append(button)
 
         # добавляем пустышки
-        for empty in range (kolvo_empty):
-                buttons.append(types.InlineKeyboardButton(" ", callback_data=callback_zero))
+        for empty in range(kolvo_empty):
+            buttons.append(types.InlineKeyboardButton(" ", callback_data=callback_zero))
 
         markup = types.InlineKeyboardMarkup(row_width=photos_per_row)
-        send_meme_button = types.InlineKeyboardButton("Проголосовать за выбранный мем", callback_data=callback_vote_for_this)
+        send_meme_button = types.InlineKeyboardButton("Проголосовать за выбранный мем",
+                                                      callback_data=callback_vote_for_this)
         markup.add(*buttons)
         markup.add(send_meme_button)
 
@@ -1999,14 +1981,16 @@ def table(player_id, game_code):
 
         # Устанавливаем таймер на удаление сообщения через 5 секунд
         if cur_player == players[-1]:  # последний игрок
-            #time.sleep(10)
+            # time.sleep(10)
             wait_thread = threading.Thread(target=wait_and_check_golosov(game_code))
             wait_thread.start()
             wait_thread.join()
-            if (game_code not in voted_players or len(voted_players[game_code]) == 0) and not stop_waiting_golosov[game_code]:
+            if (game_code not in voted_players or len(voted_players[game_code]) == 0) and not stop_waiting_golosov[
+                game_code]:
                 bot.send_message(player_id, "Никто не проголосовал")
             # проголосовали не все
-            elif not stop_waiting_golosov[game_code] and len(active_games[game_code]['players']) != len(voted_players[game_code]):
+            elif not stop_waiting_golosov[game_code] and len(active_games[game_code]['players']) != len(
+                    voted_players[game_code]):
                 del voted_players[game_code]
                 kolvo_buttons = len(cards_on_table[game_code]['photos_on_table']) - 2
                 progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty)
@@ -2023,7 +2007,7 @@ def combine_callback_handler(callback_query):
     game_code = data[1]
     additional_parameter = data[2]
 
-    if additional_parameter == "send_meme_button": # игрок хочет отправить мем в игру
+    if additional_parameter == "send_meme_button":  # игрок хочет отправить мем в игру
         if game_code not in flag_pl_otpravil:
             flag_pl_otpravil[game_code] = []
         if player_id in flag_pl_otpravil[game_code]:
@@ -2043,36 +2027,36 @@ def combine_callback_handler(callback_query):
             else:
                 kolvo_players_that_send_mem[game_code] += 1
 
-            bot.edit_message_media(chat_id=player_id, message_id=callback_query.message.message_id, media=types.InputMediaPhoto(chosen_photo))
+            bot.edit_message_media(chat_id=player_id, message_id=callback_query.message.message_id,
+                                   media=types.InputMediaPhoto(chosen_photo))
 
             # 1 - удалить из руки
-            #send_message_to_players(game_code, str(len(players_hand[game_code][player_id])))
+            # send_message_to_players(game_code, str(len(players_hand[game_code][player_id])))
 
-            del players_hand[game_code][player_id][chosen_mem_number] #хранили 5 номеров карт, теперь 4
-            del photo_bar_players[game_code][player_id][chosen_mem_number] #хранили bytes 5 мемов и бар, теперь храним 4 фотки мемов
+            del players_hand[game_code][player_id][chosen_mem_number]  # хранили 5 номеров карт, теперь 4
+            del photo_bar_players[game_code][player_id][
+                chosen_mem_number]  # хранили bytes 5 мемов и бар, теперь храним 4 фотки мемов
             photo_bar_players[game_code][player_id].pop()
 
             # 2 - отправить на стол потом добавить что добавляется список из pl_id and bytesIO
-            #cards_on_table[game_code]['photos_on_table'].append(chosen_photo.getvalue())
-            #cards_on_table[game_code]['photos_on_table'].append(chosen_photo.getvalue())
+            # cards_on_table[game_code]['photos_on_table'].append(chosen_photo.getvalue())
+            # cards_on_table[game_code]['photos_on_table'].append(chosen_photo.getvalue())
             cards_on_table[game_code]['photos_on_table'].append([player_id, chosen_photo.getvalue()])
-            players_order[game_code].append(player_id) #отсортированный список игроков
+            players_order[game_code].append(player_id)  # отсортированный список игроков
 
             if len(active_games[game_code]['players']) == kolvo_players_that_send_mem[game_code]:
                 flag_pl_otpravil[game_code] = []
                 kolvo_players_that_send_mem[game_code] = 0
                 send_message_to_players(game_code, "Все игроки отправили мемы. Время выбирать самый смешной!")
 
-
                 # удаляем сообщения из чатов
-
 
                 table(player_id, game_code)
 
 
 
-    else: #игрок пока выбирает мем
-        bar = BytesIO(photo_bar_players[game_code][player_id][5]) #bar
+    else:  # игрок пока выбирает мем
+        bar = BytesIO(photo_bar_players[game_code][player_id][5])  # bar
 
         big_photo = BytesIO()
         button_1 = "1"
@@ -2123,10 +2107,10 @@ def combine_callback_handler(callback_query):
         if mozno_li_obnovlat == True:
             combined_image_io = top_plus_bottom(big_photo, bar)
 
-            #плашка
+            # плашка
             main_image = Image.open(big_photo)
             x = cards_on_table[game_code][player_id] * 128
-            if (main_image.width < main_image.height): #вертикальная
+            if (main_image.width < main_image.height):  # вертикальная
                 y = 640 - 2
             else:
                 y = main_image.height + 461 // 5 - 2
@@ -2166,11 +2150,8 @@ def combine_callback_handler(callback_query):
             )
 
 
-
-
-#карты на руках
+# карты на руках
 # players_hand[game_code][player_id]
-
 
 
 def download_big_photo(big_photo_link):
@@ -2186,6 +2167,7 @@ def download_big_photo(big_photo_link):
 
     return big_photo_io
 
+
 def optimization_hand_cards(game_code, player_id):
     if game_code not in all_combined_images:
         all_combined_images[game_code] = []
@@ -2195,7 +2177,7 @@ def optimization_hand_cards(game_code, player_id):
     '''#генерим все ссылки на все мемы. появляется deck_of_meme_cards, trash_memes
     generate_meme_links(game_code)'''
 
-    #all_meme_links = [i for i in range(1, 251)]  # all numbers of memes
+    # all_meme_links = [i for i in range(1, 251)]  # all numbers of memes
     '''if game_code not in chosen_memes:
         chosen_memes[game_code] = all_meme_links'''
 
@@ -2209,7 +2191,7 @@ def optimization_hand_cards(game_code, player_id):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for number in range(5):
             card_link = random_choice_of_link_meme(game_code)
-            #card_number = 4
+            # card_number = 4
             players_hand[game_code][player_id].append(card_link)  # добавили номер
 
             try:
@@ -2234,7 +2216,6 @@ def optimization_hand_cards(game_code, player_id):
             for number in players_hand[game_code][player_id]:
                 if game_code in photo_bar_players:
                     photo_bar_players[game_code][player_id].append(big_images_bynumb[number].getvalue())
-
 
     # первоначальный расклад (видна 0 карта)
     if game_code in photo_bar_players:
@@ -2261,8 +2242,7 @@ def optimization_hand_cards(game_code, player_id):
         all_combined_images[game_code].append(new_image)
 
 
-
-def optimization_update_hands (player_id, game_code):
+def optimization_update_hands(player_id, game_code):
     # global all_combined_images
     # у всех игроков пополняются руки до 5 карт
 
@@ -2303,6 +2283,7 @@ def optimization_update_hands (player_id, game_code):
     new_image = insert_image_to_main(combined_image_io, (x, y), 5)
 
     all_combined_images[game_code].append(new_image)
+
 
 def delete_stuff(game_code):
     del active_games[game_code]
@@ -2349,10 +2330,10 @@ def delete_stuff(game_code):
     del message_list_of_players[game_code]
 
 
-#запонимнаем список игроков с прошлого раунда
-#remember_players = {}
+# запонимнаем список игроков с прошлого раунда
+# remember_players = {}
 
-#сыграть ещё раз
+# сыграть ещё раз
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('repeat:'))
 def repeat(callback_query):
     data = callback_query.data.split(':')
@@ -2362,12 +2343,13 @@ def repeat(callback_query):
     # удаляем прошлое сообщение
     message_id = callback_query.message.message_id
     bot.delete_message(player_id, message_id)
-    #первый раз нажали
+    # первый раз нажали
     if game_code not in remember_players:
         remember_players[game_code] = copy.copy(active_games[game_code])
-        id_and_names[game_code][remember_players[game_code]['creator']] = id_and_names[game_code][active_games[game_code]['creator']]
+        id_and_names[game_code][remember_players[game_code]['creator']] = id_and_names[game_code][
+            active_games[game_code]['creator']]
 
-        #стираем всю информацию
+        # стираем всю информацию
         delete_stuff(game_code)
 
         active_games[game_code] = {}
@@ -2408,15 +2390,16 @@ def repeat(callback_query):
 
             optimization_hand_cards(game_code, player_id)
         else:
-            #добавляем игрока, если криэйтор есть
+            # добавляем игрока, если криэйтор есть
             if 'creator' in active_games[game_code]:
                 join_existing_game(player_id, str(pl_name), game_code)
             else:
 
                 join_existing_game(player_id, str(pl_name), game_code)
 
+
 timer_hands = {}
-hands_mes_id = {} #лежат
+hands_mes_id = {}  # лежат
 import time
 from telegram import Update
 from telegram.ext import Updater, CallbackContext, CallbackQueryHandler
@@ -2432,6 +2415,7 @@ def wait_and_check_meme_chose(game_code):
         time.sleep(1)
     print("Waiting finished.")
 
+
 def wait_and_check_golosov(game_code):
     global stop_waiting_golosov
     print("Waiting for 60 seconds...")
@@ -2441,6 +2425,8 @@ def wait_and_check_golosov(game_code):
             return
         time.sleep(1)
     print("Waiting finished.")
+
+
 def players_hand_cards(game_code):
     global all_combined_images
     global hands_mes_id
@@ -2483,28 +2469,26 @@ def players_hand_cards(game_code):
             players_hand[game_code]['round'] += 1  # счётчик раундов
             for pl in players:
                 bot.send_message(pl, f"<b>{players_hand[game_code]['round']} раунд</b>", parse_mode="HTML")
-            #send_message_to_players(game_code, f"{players_hand[game_code]['round']} раунд")
+            # send_message_to_players(game_code, f"{players_hand[game_code]['round']} раунд")
             send_situation(game_code)
 
-            #send_message_to_players(game_code, "Выберите свой мем:")
+            # send_message_to_players(game_code, "Выберите свой мем:")
             # запоминаем id чтобы потом удалить
             players = active_games[game_code]['players']
             for player_id in players:
                 sit = bot.send_message(player_id, "Выберите свой мем:")
 
-
             # в бар надо добавить элемент мем и бар(мини фотки)
         else:  # 1 раунд
             for pl in players:
                 bot.send_message(pl, f"<b>1 раунд</b>", parse_mode="HTML")
-            #send_message_to_players(game_code, "1 раунд")
+            # send_message_to_players(game_code, "1 раунд")
             send_situation(game_code)
-            #send_message_to_players(game_code, "Выберите свой мем:")
+            # send_message_to_players(game_code, "Выберите свой мем:")
             players = active_games[game_code]['players']
             for player_id in players:
                 sit = bot.send_message(player_id, "Выберите свой мем:")
             players_hand[game_code]['round'] = 1
-
 
         flag = 0
         for player_id in players:
@@ -2544,10 +2528,9 @@ def players_hand_cards(game_code):
                 hands_mes_id[game_code] = {}
             hands_mes_id[game_code][player_id] = message.message_id
 
-
             # Устанавливаем таймер на удаление сообщения через 5 секунд
-            if player_id == players[-1]: #последний игрок
-                #time.sleep(10)
+            if player_id == players[-1]:  # последний игрок
+                # time.sleep(10)
                 wait_thread = threading.Thread(target=wait_and_check_meme_chose(game_code))
                 wait_thread.start()
                 wait_thread.join()
@@ -2576,7 +2559,8 @@ def players_hand_cards(game_code):
                     markup.add(new_game_button, join_game_button, rules_button)
                     bot.send_message(player_id, text="А ну-ка, выбирай", reply_markup=markup)
 
-                elif len(active_games[game_code]['players']) != kolvo_players_that_send_mem[game_code] and not stop_waiting_meme_chose[game_code]:
+                elif len(active_games[game_code]['players']) != kolvo_players_that_send_mem[game_code] and not \
+                stop_waiting_meme_chose[game_code]:
                     flag_pl_otpravil[game_code] = []
                     kolvo_players_that_send_mem[game_code] = 0
                     send_message_to_players(game_code,
@@ -2585,7 +2569,7 @@ def players_hand_cards(game_code):
                         # если игрок не вкинул карту в иру
                         if pl not in players_order[game_code]:
                             # удаляем его руку с кнопками
-                            bot.delete_message(chat_id = pl, message_id=hands_mes_id[game_code][pl])
+                            bot.delete_message(chat_id=pl, message_id=hands_mes_id[game_code][pl])
                             bot.send_message(pl, "Ты не успел вкинуть свой мем в игру:(")
 
                     table(player_id, game_code)
@@ -2598,17 +2582,5 @@ def players_hand_cards(game_code):
             timer_hands[player_id] = timer'''
 
 
-#надо как-то сделать юот бесконечным, а то ун умирает через какое-то время, если его не использовать
-bot.polling(none_stop=True, timeout = 31536000)
-
-
-
-
-
-
-
-
-
-
-
-
+# надо как-то сделать юот бесконечным, а то ун умирает через какое-то время, если его не использовать
+bot.polling(none_stop=True, timeout=31536000)
