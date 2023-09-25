@@ -5,5 +5,6 @@ services:
     build:
       dockerfile: ./Dockerfile
     command: "python3 bot.py"
+    restart: always
     volumes:
       - ./:/app
