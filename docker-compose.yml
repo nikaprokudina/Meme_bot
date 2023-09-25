@@ -1,0 +1,9 @@
+version: '3.9'
+
+services:
+  bot:
+    build:
+      dockerfile: ./Dockerfile
+    command: "python3 bot.py"
+    volumes:
+      - ./:/app
