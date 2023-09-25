@@ -128,8 +128,7 @@ def update_players_message(game_code, new_player_id, creator_name):
 
 def generate_game_code():
     code = ''.join(random.choices(string.digits, k=6))
-    # return code
-    return "000000"
+    return code
 
 
 # старт: присоединиться к игре или создать новую
