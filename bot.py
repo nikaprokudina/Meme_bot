@@ -10,7 +10,8 @@ import requests
 import concurrent.futures
 import io
 import threading
-import sqlite3
+# import sqlite3
+
 
 import decimal
 import hashlib
@@ -18,10 +19,11 @@ from urllib import parse
 from collections import OrderedDict
 import datetime
 import copy
+# import files
+import SQLFunc
 
-bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
-# bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
-
+# bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
+bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
 
 # Словарь для хранения активных игр
 active_games = {}
@@ -50,7 +52,8 @@ players_hand = {}
 # все доступные тарифы meme 0,1,2,3,4
 all_available_tarifs_memes = {}
 nazat_tarifs_memes = {}
-
+kolvo_naz_green_buttons = {}
+kolvo_naz_green_sit = {}
 all_available_tarifs_sit = {}
 nazat_tarifs_sit = {}
 
@@ -159,6 +162,8 @@ def main_menu(callback_query):
 
         del all_available_tarifs_memes[game_code]
         del nazat_tarifs_memes[game_code]
+        del kolvo_naz_green_buttons[game_code]
+        del kolvo_naz_green_sit[game_code]
         del all_available_tarifs_sit[game_code]
         del nazat_tarifs_sit[game_code]
         del deck_of_sit_cards[game_code]
@@ -189,38 +194,30 @@ def rules(message):
     bot.send_message(player_id, f"ляля тут будут правила", reply_markup=markup)
 
 
-# смотрим на подписки юзера
-def get_user_subscriptions(user_id):
-    connect = sqlite3.connect("db.db")
-    cursor = connect.cursor()
-
-    cursor.execute('SELECT * FROM subscriptions WHERE user_id = ?', (user_id,))
-    user_subscriptions = cursor.fetchall()
-
-    connect.close()
-    return user_subscriptions
-
-
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('meme_tarif:'))
 def chose_tarif_meme(callback_query):
     with message_list_lock:
         global all_available_tarifs_memes
         global nazat_tarifs_memes
+        global kolvo_naz_green_buttons
         data = callback_query.data.split(':')
         player_id = callback_query.from_user.id
         game_code = data[1]
         button = int(data[2])
 
         # удаляем прошлое сообщение
-        message_id = callback_query.message.message_id
+        # message_id = callback_query.message.message_id
         # bot.delete_message(player_id, message_id)
+
         if button not in all_available_tarifs_memes[game_code]:
             robocassa(player_id, button, game_code)
         else:
             if button not in nazat_tarifs_memes[game_code]:  # кнопка ненажата -> нажата = зеленый
                 nazat_tarifs_memes[game_code].append(button)
+                kolvo_naz_green_buttons[game_code] += 1
             else:  # кнопка была нажата, теперь нет -> белый
                 nazat_tarifs_memes[game_code].remove(button)
+                kolvo_naz_green_buttons[game_code] -= 1
             logos = []
             for number in range(5):  # проходимся по всем кнопкам
                 if number in nazat_tarifs_memes[game_code]:  # должна быть зелёной
@@ -256,8 +253,6 @@ def chose_tarif_meme(callback_query):
 
 # из документации
 def calculate_signature(*args) -> str:
-    """Create signature MD5.
-    """
     return hashlib.md5(':'.join(str(arg) for arg in args).encode()).hexdigest()
 
 
@@ -370,29 +365,6 @@ def oplata(callback_query):
         flag_double_oplata[game_code] = False
 
 
-def create_table():
-    connect = sqlite3.connect("db.db")
-    cursor = connect.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
-                      id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      user_id INTEGER,
-                      user_name TEXT,
-                      tarif TEXT
-                   )''')
-    connect.commit()
-
-
-def add(user_id, user_name, tarif, expiration_date):
-    create_table()
-    # подключаем нашу базу данных
-    connect = sqlite3.connect("db.db")
-    # курсор для работы с таблицами
-    cursor = connect.cursor()
-    cursor.execute('INSERT INTO subscriptions (user_id, user_name, tarif, expiration_date) VALUES (?, ?, ?, ?)',
-                   (user_id, user_name, tarif, expiration_date))
-    connect.commit()
-
-
 @bot.message_handler(content_types=['successful_payment'])
 def handle_successful_payment(message):
     chat_id = message.chat.id
@@ -419,17 +391,16 @@ def handle_successful_payment(message):
     all_names_in_table = ['Демка', 'База', 'СССР', 'Котики', 'НЕЙРО']
     if button != 1000:
         text = all_names_in_table[button]
-        add(player_id, player_nick, text, one_month_later_text)
+        SQLFunc.add_subscription(player_id, player_nick, text, one_month_later_text)
     else:
         for text in all_names_in_table[1:]:
-            add(player_id, player_nick, text, one_month_later_text)
+            SQLFunc.add_subscription(player_id, player_nick, text, one_month_later_text)
 
 
 flag_double_oplata = {}
 
 
 # робокасса (менюшки с выбором лотов)
-
 def robocassa(user_id, button, game_code):
     global ids_3_otmena
 
@@ -583,10 +554,13 @@ def chose_tarif_sit(callback_query):
     with message_list_lock:
         global all_available_tarifs_sit
         global nazat_tarifs_sit
+        global kolvo_naz_green_sit
         data = callback_query.data.split(':')
         player_id = callback_query.from_user.id
         game_code = data[1]
         button = int(data[2])
+
+
 
         if button not in all_available_tarifs_sit[game_code]:
             # bot.send_message(player_id, "Этот тариф пока недоступен. Хорошая новость: его можно купить!")
@@ -595,14 +569,18 @@ def chose_tarif_sit(callback_query):
         else:
             if button not in nazat_tarifs_sit[game_code]:  # кнопка ненажата -> нажата = зеленый
                 nazat_tarifs_sit[game_code].append(button)
+                kolvo_naz_green_sit[game_code] += 1
             else:  # кнопка была нажата, теперь нет -> белый
                 nazat_tarifs_sit[game_code].remove(button)
+                kolvo_naz_green_sit[game_code] -= 1
             logos = []
             for number in range(5):  # проходимся по всем кнопкам
                 if number in nazat_tarifs_sit[game_code]:  # должна быть зелёной
                     logos.append("🟢️ ")
+
                 elif number in all_available_tarifs_sit[game_code]:  # доступна, но не нажата (белый)
                     logos.append("⚪️ ")
+
                 else:  # замок
                     logos.append("💰")
 
@@ -629,15 +607,15 @@ def chose_tarif_sit(callback_query):
 def chose_deck_of_cards(player_id, game_code):
     global all_available_tarifs_memes
     global nazat_tarifs_memes
-
+    global kolvo_naz_green_buttons
+    global kolvo_naz_green_sit
     global all_available_tarifs_sit
     global nazat_tarifs_sit
     # 0-id, 1-name, 2-tarif, 3-data
 
-    # add(player_id, "sakuharo", "+", "10.08.2024 15:30:00")
     # add(player_id, "sakuharo", "Котики", "10.08.2021 15:30:00")
     # смотрим на подписки игрока
-    user_subscriptions = get_user_subscriptions(player_id)
+    user_subscriptions = SQLFunc.get_user_subscriptions(player_id)
     '''for i in user_subscriptions:
         bot.send_message(player_id, str(i))'''
     nazat_tarifs_memes[game_code] = [0]
@@ -646,6 +624,11 @@ def chose_deck_of_cards(player_id, game_code):
     # все доступные тарифы 0,1,2,3,4
     all_available_tarifs_memes[game_code] = [0]
     all_available_tarifs_sit[game_code] = [0]
+
+    if game_code not in kolvo_naz_green_buttons:
+        kolvo_naz_green_buttons[game_code] = 1
+    if game_code not in kolvo_naz_green_sit:
+        kolvo_naz_green_sit[game_code] = 1
 
     # выбор мемов
     demo_meme = f"meme_tarif:{game_code}:{0}"
@@ -667,14 +650,15 @@ def chose_deck_of_cards(player_id, game_code):
         current_datetime = datetime.datetime.now()
 
         tarifs_and_data = {}  # тарифы - ключи, даты-values
+        print(tarifs_and_data)
         for raw in user_subscriptions:
             # добавляем тариф
-            if raw[2] not in tarifs_and_data:
-                tarifs_and_data[raw[2]] = [raw[3]]
+            if raw['tarif'] not in tarifs_and_data:
+                tarifs_and_data[raw['tarif']] = [raw['expiration_date']]
             # если несколь дат, то добавляем и сортируем
             else:
-                tarifs_and_data[raw[2]].append(raw[3])
-                tarifs_and_data[raw[2]].sort()
+                tarifs_and_data[raw['tarif']].append(raw['expiration_date'])
+                tarifs_and_data[raw['tarif']].sort()
         if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1],
                                                                     "%d.%m.%Y %H:%M:%S") > current_datetime:
             base = types.InlineKeyboardButton("⚪️ База (250 шт.)", callback_data=base_meme)
@@ -725,12 +709,12 @@ def chose_deck_of_cards(player_id, game_code):
         tarifs_and_data = {}  # тарифы - ключи, даты-values
         for raw in user_subscriptions:
             # добавляем тариф
-            if raw[2] not in tarifs_and_data:
-                tarifs_and_data[raw[2]] = [raw[3]]
+            if raw['tarif'] not in tarifs_and_data:
+                tarifs_and_data[raw['tarif']] = [raw['expiration_date']]
             # если несколь дат, то добавляем и сортируем
             else:
-                tarifs_and_data[raw[2]].append(raw[3])
-                tarifs_and_data[raw[2]].sort()
+                tarifs_and_data[raw['tarif']].append(raw['expiration_date'])
+                tarifs_and_data[raw['tarif']].sort()
         if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1],
                                                                     "%d.%m.%Y %H:%M:%S") > current_datetime:
             base = types.InlineKeyboardButton("⚪️ База (100 шт.)", callback_data=base_sit)
@@ -798,10 +782,14 @@ def new_game(message):
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('podtverdit:'))
 def podtverdit_choices(callback_query):
+    global kolvo_naz_green_buttons
+    global kolvo_naz_green_sit
+    global ids_3_gotovo
     data = callback_query.data.split(':')
     player_id = callback_query.from_user.id
     game_code = data[1]
-    if mozno_li_nazat_gotovo[game_code]:
+
+    if mozno_li_nazat_gotovo[game_code] and kolvo_naz_green_buttons[game_code] > 0 and kolvo_naz_green_sit[game_code] > 0:
         mozno_li_nazat_gotovo[game_code] = False
         message_id_1 = ids_3_gotovo[game_code][0]
         message_id_2 = ids_3_gotovo[game_code][1]
@@ -811,6 +799,9 @@ def podtverdit_choices(callback_query):
         bot.delete_message(player_id, message_id_1)
         bot.delete_message(player_id, message_id_2)
         bot.delete_message(player_id, message_id)
+        if len(ids_3_gotovo[game_code]) == 4:
+            bot.delete_message(player_id, ids_3_gotovo[game_code][3])
+            ids_3_gotovo[game_code].pop()
 
         # генерим все ссылки на все мемы. появляется deck_of_meme_cards, trash_memes
         generate_meme_links(game_code)
@@ -835,6 +826,12 @@ def podtverdit_choices(callback_query):
         bot.send_message(player_id, f'Когда все присоединятся, нажмите "Начать игру"', reply_markup=markup)
 
         optimization_hand_cards(game_code, player_id)
+    elif kolvo_naz_green_buttons[game_code] == 0 or kolvo_naz_green_sit[game_code] == 0 and len(ids_3_gotovo[game_code])!= 4:
+            message = bot.send_message(player_id, "Нужно выбрать хотябы по одному набору мемов и ситуаций")
+            message_id = message.message_id
+            ids_3_gotovo[game_code].append(message_id)
+
+
 
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('drop:'))

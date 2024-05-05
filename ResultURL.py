@@ -3,6 +3,7 @@ import hashlib
 import decimal
 import datetime
 import sqlite3
+import psycopg2
 
 
 # Получение уведомления об исполнении операции (ResultURL).
@@ -37,25 +38,44 @@ def check_signature_result(
     return False
 
 
-def create_table():
-    connect = sqlite3.connect("db.db")
-    cursor = connect.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
-                      id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      user_id INTEGER,
-                      user_name TEXT,
-                      tarif TEXT
-                   )''')
-    connect.commit()
+# def create_table():
+#     connect = sqlite3.connect("db.db")
+#     cursor = connect.cursor()
+#     cursor.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
+#                       id INTEGER PRIMARY KEY AUTOINCREMENT,
+#                       user_id INTEGER,
+#                       user_name TEXT,
+#                       tarif TEXT
+#                    )''')
+#     connect.commit()
+
+
+
+# def add(user_id, user_name, tarif, expiration_date):
+#     create_table()
+#     #подключаем нашу базу данных
+#     connect = sqlite3.connect("db.db")
+#     #курсор для работы с таблицами
+#     cursor = connect.cursor()
+#     cursor.execute('INSERT INTO subscriptions (user_id, user_name, tarif, expiration_date) VALUES (?, ?, ?, ?)',
+#                    (user_id, user_name, tarif, expiration_date))
+#     connect.commit()
+
 def add(user_id, user_name, tarif, expiration_date):
-    create_table()
-    #подключаем нашу базу данных
-    connect = sqlite3.connect("db.db")
-    #курсор для работы с таблицами
+    connect = psycopg2.connect(
+        dbname="your_dbname",
+        user="your_username",
+        password="your_password",
+        host="your_host",
+        port="5432"
+    )
     cursor = connect.cursor()
-    cursor.execute('INSERT INTO subscriptions (user_id, user_name, tarif, expiration_date) VALUES (?, ?, ?, ?)',
-                   (user_id, user_name, tarif, expiration_date))
+    cursor.execute(
+        'INSERT INTO subscriptions (user_id, user_name, tarif, expiration_date) VALUES (%s, %s, %s, %s)',
+        (user_id, user_name, tarif, expiration_date)
+    )
     connect.commit()
+    connect.close()
 
 def result_payment(merchant_password_2: str, request: str) -> str:
     """Verification of notification (ResultURL).
