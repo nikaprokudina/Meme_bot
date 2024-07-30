@@ -209,541 +209,344 @@ def chose_tarif_meme(callback_query):
         game_code = data[1]
         button = int(data[2])
 
-        # удаляем прошлое сообщение
-        # message_id = callback_query.message.message_id
-        # bot.delete_message(player_id, message_id)
 
-        if button not in all_available_tarifs_memes[game_code]: # нажали на кнопку с замком (хотят купить)
-            choose_the_duration_of_subscription(player_id, button, game_code)
+        # включить когда будет оплата
+        # if button not in all_available_tarifs_memes[game_code]: # нажали на кнопку с замком (хотят купить)
+        #     choose_the_duration_of_subscription(player_id, button, game_code)
 
-        else:
-            if button not in nazat_tarifs_memes[game_code]:  # кнопка ненажата -> нажата = зеленый
-                nazat_tarifs_memes[game_code].append(button)
-                kolvo_naz_green_buttons[game_code] += 1
-            else:  # кнопка была нажата, теперь нет -> белый
-                nazat_tarifs_memes[game_code].remove(button)
-                kolvo_naz_green_buttons[game_code] -= 1
-            logos = []
-            for number in range(5):  # проходимся по всем кнопкам
-                if number in nazat_tarifs_memes[game_code]:  # должна быть зелёной
-                    logos.append("🟢️ ")
-                elif number in all_available_tarifs_memes[game_code]:  # доступна, но не нажата (белый)
-                    logos.append("⚪️ ")
-                else:  # замок
-                    logos.append("💰")
+        # else:
+        if button not in nazat_tarifs_memes[game_code]:  # кнопка ненажата -> нажата = зеленый
+            nazat_tarifs_memes[game_code].append(button)
+            kolvo_naz_green_buttons[game_code] += 1
+        else:  # кнопка была нажата, теперь нет -> белый
+            nazat_tarifs_memes[game_code].remove(button)
+            kolvo_naz_green_buttons[game_code] -= 1
+        logos = []
+        for number in range(5):  # проходимся по всем кнопкам
+            if number in nazat_tarifs_memes[game_code]:  # должна быть зелёной
+                logos.append("🟢️ ")
+            # удалить потом когда подключат оплату
+            else:
+                logos.append("⚪ ")
+            # elif number in all_available_tarifs_memes[game_code]:  # доступна, но не нажата (белый)
+            #     logos.append("⚪️ ")
+            # else:  # замок
+            #     logos.append("💰")
 
-            # выбор мемов
-            demo_meme = f"meme_tarif:{game_code}:{0}"
-            base_meme = f"meme_tarif:{game_code}:{1}"
-            cccp_meme = f"meme_tarif:{game_code}:{2}"
-            cats_meme = f"meme_tarif:{game_code}:{3}"
-            neiro_meme = f"meme_tarif:{game_code}:{4}"
-            markup = types.InlineKeyboardMarkup(row_width=2)
-            demo = types.InlineKeyboardButton(f"{logos[0]}Демка (по 10 из всех сетов)", callback_data=demo_meme)
-            base = types.InlineKeyboardButton(f"{logos[1]}База (250 шт.)", callback_data=base_meme)
-            cccp = types.InlineKeyboardButton(f"{logos[2]}СССР (250 шт.)", callback_data=cccp_meme)
-            cats = types.InlineKeyboardButton(f"{logos[3]}Котики (250 шт.)", callback_data=cats_meme)
-            neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (250 шт.)", callback_data=neiro_meme)
-            markup.row(demo)
-            markup.add(base, cccp, cats, neiro)
-            # bot.send_message(player_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
-            '''for i in nazat_tarifs_memes[game_code]:
-                bot.send_message(player_id, str(i))
-            bot.send_message(player_id, "---")'''
-            bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id,
-                                  text="Приятель, тебе придётся выбрать набор мемов-картинок:",
-                                  reply_markup=markup)
-            # bot.edit_message_text(chat_id=player_id, message_id=message_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
-
-
-# БЛОК ОПЛАТЫ
-# из документации
-def calculate_signature(*args) -> str:
-    return hashlib.md5(':'.join(str(arg) for arg in args).encode()).hexdigest()
+        # выбор мемов
+        demo_meme = f"meme_tarif:{game_code}:{0}"
+        base_meme = f"meme_tarif:{game_code}:{1}"
+        cccp_meme = f"meme_tarif:{game_code}:{2}"
+        cats_meme = f"meme_tarif:{game_code}:{3}"
+        neiro_meme = f"meme_tarif:{game_code}:{4}"
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        demo = types.InlineKeyboardButton(f"{logos[0]}Демка (по 10 из всех сетов)", callback_data=demo_meme)
+        base = types.InlineKeyboardButton(f"{logos[1]}База (250 шт.)", callback_data=base_meme)
+        cccp = types.InlineKeyboardButton(f"{logos[2]}СССР (250 шт.)", callback_data=cccp_meme)
+        cats = types.InlineKeyboardButton(f"{logos[3]}Котики (250 шт.)", callback_data=cats_meme)
+        neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (250 шт.)", callback_data=neiro_meme)
+        markup.row(demo)
+        markup.add(base, cccp, cats, neiro)
+        # bot.send_message(player_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
+        '''for i in nazat_tarifs_memes[game_code]:
+            bot.send_message(player_id, str(i))
+        bot.send_message(player_id, "---")'''
+        bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id,
+                              text="Приятель, тебе придётся выбрать набор мемов-картинок:",
+                              reply_markup=markup)
+        # bot.edit_message_text(chat_id=player_id, message_id=message_id, text=f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
 
 
-# Формирование URL переадресации пользователя на оплату.
+# # БЛОК ОПЛАТЫ
+# # из документации
+# def calculate_signature(*args) -> str:
+#     return hashlib.md5(':'.join(str(arg) for arg in args).encode()).hexdigest()
 #
-# def generate_payment_link(
-#         merchant_login: str,  # Merchant login
-#         merchant_password_1: str,  # Merchant password
-#         cost: decimal,  # Cost of goods, RU
-#         InvId: int,  # Invoice number
-#         description: str,  # Description of the purchase
-#         is_test=1,
-#         robokassa_payment_url='https://auth.robokassa.ru/Merchant/Index.aspx',
-# ) -> str:
-#     """URL for redirection of the customer to the service.
-#     """
-#     signature = calculate_signature(
-#         merchant_login,
-#         cost,
-#         InvId,
-#         merchant_password_1
-#     )
 #
-#     data = {
-#         'MerchantLogin': merchant_login,
-#         'OutSum': cost,
-#         'InvId': InvId,
-#         'Description': description,
-#         'SignatureValue': signature,
-#         'IsTest': is_test
-#     }
-#     return f'{robokassa_payment_url}?{parse.urlencode(data)}'
+# flag_mes_oplat_id = {}
+#
+# # STARS
+#
+# all_names_of_tarifs = ['Демка', 'МЕМЫ: Весело и в точку!', 'МЕМЫ 2: СССР и 90-е', 'МЕМЫ 3: Котики и пр. нелюди',
+#                        'МЕМЫ НЕЙРО']
+#
+#
+#
+# @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('oplata:'))
+# def oplata(callback_query):
+#     data = callback_query.data.split(':')
+#     game_code = data[5]
+#     global all_names_of_tarifs
+#     chat_id = callback_query.from_user.id
+#     days_text = data[1]
+#     days_number = data[2]  # 1, 30, 365
+#     price = int(data[3])
+#     button = int(data[4])
+#
+#
+#
+#     if not flag_double_oplata[game_code]:
+#         flag_double_oplata[game_code] = True
+#         try:
+#             bot.delete_message(chat_id, ids_3_otmena[game_code][2])  # вернуться к выбору карт
+#         except:
+#             pass
+#
+#         if game_code in flag_mes_oplat_id:
+#             try:
+#                 bot.delete_message(chat_id, flag_mes_oplat_id[game_code])  # прошлая invoice
+#             except:
+#                 pass
+#
+#         ids_3_otmena[game_code].pop(2)  # попаем вернуться к выбору
+#
+#         if button != 1000:
+#             name_of_cards = all_names_of_tarifs[int(button)]
+#             prices = [types.LabeledPrice(label=f'{name_of_cards} на 1 {days_text}', amount=price)]
+#             descrip_text = f'💸 Приобрести "{name_of_cards}" на 1 {days_text} 💸'
+#             title_text = f'Набор {name_of_cards}'
+#         else:
+#             prices = [types.LabeledPrice(label=f'Все наборы на 1 {days_text}', amount=price)]
+#             descrip_text = f'💸 Приобрести ВСЕ наборы на 1 {days_text} 💸'
+#             title_text = 'ВСЕ наборы'
+#
+#         try:
+#             bot.delete_message(chat_id, ids_3_otmena[game_code][3])
+#         except:
+#             pass
+#         try:
+#             bot.delete_message(chat_id, ids_3_otmena[game_code][2])
+#         except:
+#             pass
+#         try:
+#             ids_3_otmena[game_code].pop(2)
+#             ids_3_otmena[game_code].pop(2)
+#         except:
+#             pass
+#
+#         call_data = f'{chat_id} {callback_query.from_user.username} {button} {days_number}'
+#
+#         invoice_message = bot.send_invoice(
+#             chat_id,
+#             title=title_text,
+#             description=descrip_text,
+#             invoice_payload=call_data,  # что передаём
+#             provider_token='',
+#             currency='XTR',  # telegram strs
+#             prices=prices,
+#             start_parameter='test',
+#         )
+#
+#         # Отправляем сообщение с кнопкой "Отмена" и сохраняем его message_id
+#         markup = types.InlineKeyboardMarkup()
+#         flag_double_cancel_payment[game_code] = False
+#         cancel_button = types.InlineKeyboardButton(text="Отмена", callback_data=f"cancel_payment:{game_code}")
+#         markup.add(cancel_button)
+#         cancel_message = bot.send_message(chat_id, "Вы можете отменить оплату, нажав кнопку ниже:", reply_markup=markup)
+#
+#
+#         ids_3_otmena[game_code].extend([cancel_message.message_id, invoice_message.message_id])
+#         flag_double_oplata[game_code] = False
+#
+#         # pay_button_first_time[game_code] = True
+#
+#     # Обработчик для кнопки "Отмена"
+#     @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('cancel_payment:'))
+#     def cancel_payment(callback_query):
+#         data = callback_query.data.split(':')
+#         game_code = data[1]
+#         chat_id = callback_query.from_user.id
+#
+#         if not flag_double_cancel_payment[game_code]:
+#             flag_double_cancel_payment[game_code] = True
+#             try:
+#                 bot.delete_message(chat_id, ids_3_otmena[game_code][-1])  # Удаляем инвойс
+#             except Exception as e:
+#                 pass
+#
+#             try:
+#                 bot.delete_message(chat_id, ids_3_otmena[game_code][-2])  # Удаляем сообщение об отмене
+#             except Exception as e:
+#                 pass
+#             try:
+#                 bot.delete_message(chat_id, ids_3_otmena[game_code][0])  # Удаляем сообщение 1
+#             except Exception as e:
+#                 pass
+#             try:
+#                 bot.delete_message(chat_id, ids_3_otmena[game_code][1])  # Удаляем сообщение 2
+#             except Exception as e:
+#                 pass
+#             ids_3_otmena[game_code] = []
+#
+#             markup = types.InlineKeyboardMarkup(row_width=1)
+#             callback_data_podtverdit = f"podtverdit:{game_code}"
+#             mozno_li_nazat_gotovo[game_code] = True
+#             podtverdit_choice = types.InlineKeyboardButton("Готово!", callback_data=callback_data_podtverdit)
+#             now_obnov[game_code] = False
+#             choose_the_duration_of_subscription_first_time[game_code] = True
+#             markup.add(podtverdit_choice)
+#             message = bot.send_message(chat_id, "Когда выберешь колоды, жми", reply_markup=markup)
+#             message_id = message.message_id
+#             ids_3_gotovo[game_code].append(message_id)  # добавили 3 элементом id сообщения "готово"
+#
+#             # ids_3_otmena[game_code] = []
+#             flag_double_cancel_payment[game_code] = False
+#
+#
+# @bot.pre_checkout_query_handler(func=lambda query: True)
+# def checkout(pre_checkout_query):
+#     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+#
+# @bot.message_handler(content_types=['successful_payment'])
+# def got_payment(message):
+#     # payment_info = message.successful_payment.to_python()
+#     # game_code = payment_info['invoice_payload'].split(':')[1]
+#     bot.send_message(message.chat.id, 'Оплата прошла успешно! Спасибо за покупку.')
+#     # chat_id = message.chat.id
+#
+#     successful_payment_info_all = message.successful_payment
+#     useful_info_payment = (successful_payment_info_all.invoice_payload).split()
+#     player_id = int(useful_info_payment[0])
+#     player_nick = useful_info_payment[1]
+#     button = int(useful_info_payment[2])
+#     days = int(useful_info_payment[3])
+#     mess = bot.send_message(message.chat.id, 'Оплата прошла успешно!')
+#
+#     # Получить текущую дату и время
+#     current_datetime = datetime.datetime.now()
+#     # Прибавить нужный тариф
+#     if days == 1:
+#         expiration = current_datetime + datetime.timedelta(days=1)
+#     elif days == 30:  # Прибавить месяц
+#         expiration = current_datetime.replace(month=current_datetime.month + 1)
+#     else:  # Прибавить год
+#         expiration = current_datetime.replace(year=current_datetime.year + 1)
+#     # Преобразовать новые даты и время в текстовый формат (строку)
+#     one_month_later_text = expiration.strftime("%d.%m.%Y %H:%M:%S")
+#
+#     all_names_in_table = ['Демка', 'База', 'СССР', 'Котики', 'НЕЙРО']
+#     if button != 1000:
+#         text = all_names_in_table[button]
+#         database.add_subscription(player_id, player_nick, text, one_month_later_text)
+#     else:
+#         for text in all_names_in_table[1:]:
+#             database.add_subscription(player_id, player_nick, text, one_month_later_text)
+#
+#
+#
+# # (менюшки с выбором лотов)
+# def choose_the_duration_of_subscription(user_id, button, game_code):
+#     global ids_3_otmena
+#
+#     # удаляем кнопку готово
+#     if choose_the_duration_of_subscription_first_time[game_code]:
+#         gotovo_id = ids_3_gotovo[game_code][2]
+#         ids_3_gotovo[game_code].pop()
+#         bot.delete_message(user_id, gotovo_id)
+#
+#     keyboard_1 = telebot.types.InlineKeyboardMarkup()
+#     flag_double_oplata[game_code] = False
+#     callback_oplata_100 = f"oplata:день:{1}:{100}:{button}:{game_code}"
+#     callback_oplata_300 = f"oplata:месяц:{30}:{300}:{button}:{game_code}"
+#     callback_oplata_900 = f"oplata:год:{365}:{900}:{button}:{game_code}"
+#
+#     pay_button_day = types.InlineKeyboardButton(text=f"день: 100 ₽.", callback_data=callback_oplata_100)
+#     pay_button_month = telebot.types.InlineKeyboardButton(text=f"мес: 300 ₽.", callback_data=callback_oplata_300)
+#     pay_button_year = telebot.types.InlineKeyboardButton(text=f"год: 900 ₽.", callback_data=callback_oplata_900)
+#
+#     keyboard_1.add(pay_button_day, pay_button_month, pay_button_year)
+#     if button == 1:
+#         emoji = "🎯"
+#     elif button == 2:
+#         emoji = "🕺"
+#     elif button == 3:
+#         emoji = "😻"
+#     else:
+#         emoji = "⚡️"
+#     if not choose_the_duration_of_subscription_first_time[game_code]:
+#         try:
+#             message_1 = bot.edit_message_text(chat_id=user_id, message_id=ids_3_otmena[game_code][0],
+#                                               text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:",
+#                                               reply_markup=keyboard_1, parse_mode="HTML")
+#             message_1_id = ids_3_otmena[game_code][0]
+#         except:
+#             message_1_id = ids_3_otmena[game_code][0]
+#     else:
+#         message_1 = bot.send_message(user_id,
+#                                      text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:",
+#                                      reply_markup=keyboard_1, parse_mode="HTML")
+#         message_1_id = message_1.message_id
+#
+#     # 1000 - button на все тарифы
+#     callback_oplata_600_all = f"oplata:день:{1}:{600}:{1000}:{game_code}"
+#     callback_oplata_1800_all = f"oplata:месяц:{30}:{1800}:{1000}:{game_code}"
+#     callback_oplata_5400_all = f"oplata:год:{365}:{5400}:{1000}:{game_code}"
+#
+#     pay_button_day = types.InlineKeyboardButton(text=f"день: 600 ₽.", callback_data=callback_oplata_600_all)
+#     pay_button_month = telebot.types.InlineKeyboardButton(text=f"мес: 1800 ₽.", callback_data=callback_oplata_1800_all)
+#     pay_button_year = telebot.types.InlineKeyboardButton(text=f"год: 5400 ₽.", callback_data=callback_oplata_5400_all)
+#
+#     keyboard_2 = telebot.types.InlineKeyboardMarkup()
+#     keyboard_2.add(pay_button_day, pay_button_month, pay_button_year)
+#     if not choose_the_duration_of_subscription_first_time[game_code]:
+#         message_2_id = ids_3_otmena[game_code][1]
+#     else:
+#         message_2 = bot.send_message(user_id,
+#                                      text="Купить <b>полный доступ</b> ко всем существующим и будущим сетам на период:",
+#                                      reply_markup=keyboard_2, parse_mode="HTML")
+#         message_2_id = message_2.message_id
+#
+#     call_data = f"otmena_pokupki:{game_code}"
+#     # call_data = f"pay_mem:{game_code}"
+#     markup = types.InlineKeyboardMarkup(row_width=1)
+#     mozno_obnovlat[game_code] = True
+#     chestno = types.InlineKeyboardButton(text="Вернуться к выбору карт для игры", callback_data=call_data)
+#     markup.row(chestno)
+#
+#     if not choose_the_duration_of_subscription_first_time[game_code]:
+#         message_3_id = ids_3_otmena[game_code][2]
+#     else:
+#         choose_the_duration_of_subscription_first_time[game_code] = False
+#         message_3 = bot.send_message(chat_id=user_id, text="Чтобы вернуться к выбору сетов, нажми на кнопку",
+#                                      reply_markup=markup)
+#         message_3_id = message_3.message_id
+#
+#     ids_3_otmena[game_code] = [message_1_id, message_2_id, message_3_id]
 
 
-from dotenv import load_dotenv
-import os
-from os.path import join, dirname
-from telebot import types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from telebot.types import LabeledPrice
 
-flag_mes_oplat_id = {}
-
-# STARS
-
-all_names_of_tarifs = ['Демка', 'МЕМЫ: Весело и в точку!', 'МЕМЫ 2: СССР и 90-е', 'МЕМЫ 3: Котики и пр. нелюди',
-                       'МЕМЫ НЕЙРО']
-
-from telebot import types
-
-# Функция для создания клавиатуры с кнопками оплаты и отмены
-from telebot import types
-
-@bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('oplata:'))
-def oplata(callback_query):
-    data = callback_query.data.split(':')
-    game_code = data[5]
-    global all_names_of_tarifs
-    chat_id = callback_query.from_user.id
-    days_text = data[1]
-    days_number = data[2]  # 1, 30, 365
-    price = int(data[3])
-    button = int(data[4])
-
-
-
-    if not flag_double_oplata[game_code]:
-        flag_double_oplata[game_code] = True
-        try:
-            bot.delete_message(chat_id, ids_3_otmena[game_code][2])  # вернуться к выбору карт
-        except:
-            pass
-
-        if game_code in flag_mes_oplat_id:
-            try:
-                bot.delete_message(chat_id, flag_mes_oplat_id[game_code])  # прошлая invoice
-            except:
-                pass
-
-        ids_3_otmena[game_code].pop(2)  # попаем вернуться к выбору
-
-        if button != 1000:
-            name_of_cards = all_names_of_tarifs[int(button)]
-            prices = [types.LabeledPrice(label=f'{name_of_cards} на 1 {days_text}', amount=price)]
-            descrip_text = f'💸 Приобрести "{name_of_cards}" на 1 {days_text} 💸'
-            title_text = f'Набор {name_of_cards}'
-        else:
-            prices = [types.LabeledPrice(label=f'Все наборы на 1 {days_text}', amount=price)]
-            descrip_text = f'💸 Приобрести ВСЕ наборы на 1 {days_text} 💸'
-            title_text = 'ВСЕ наборы'
-
-        call_data = f"pay_mem:{game_code}"
-
-        try:
-            bot.delete_message(chat_id, ids_3_otmena[game_code][3])
-        except:
-            pass
-        try:
-            bot.delete_message(chat_id, ids_3_otmena[game_code][2])
-        except:
-            pass
-        try:
-            ids_3_otmena[game_code].pop(2)
-            ids_3_otmena[game_code].pop(2)
-        except:
-            pass
-
-        invoice_message = bot.send_invoice(
-            chat_id,
-            title=title_text,
-            description=descrip_text,
-            invoice_payload=call_data,
-            provider_token='',
-            currency='XTR',  # telegram strs
-            prices=prices,
-            start_parameter='test'
-        )
-
-        # Отправляем сообщение с кнопкой "Отмена" и сохраняем его message_id
-        markup = types.InlineKeyboardMarkup()
-        flag_double_cancel_payment[game_code] = False
-        cancel_button = types.InlineKeyboardButton(text="Отмена", callback_data=f"cancel_payment:{game_code}")
-        markup.add(cancel_button)
-        cancel_message = bot.send_message(chat_id, "Вы можете отменить оплату, нажав кнопку ниже:", reply_markup=markup)
-
-
-        ids_3_otmena[game_code].extend([cancel_message.message_id, invoice_message.message_id])
-        flag_double_oplata[game_code] = False
-
-        # pay_button_first_time[game_code] = True
-
-    # Обработчик для кнопки "Отмена"
-    @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('cancel_payment:'))
-    def cancel_payment(callback_query):
-        data = callback_query.data.split(':')
-        game_code = data[1]
-        chat_id = callback_query.from_user.id
-
-        if not flag_double_cancel_payment[game_code]:
-            flag_double_cancel_payment[game_code] = True
-            try:
-                bot.delete_message(chat_id, ids_3_otmena[game_code][-1])  # Удаляем инвойс
-            except Exception as e:
-                pass
-
-            try:
-                bot.delete_message(chat_id, ids_3_otmena[game_code][-2])  # Удаляем сообщение об отмене
-            except Exception as e:
-                pass
-            try:
-                bot.delete_message(chat_id, ids_3_otmena[game_code][0])  # Удаляем сообщение 1
-            except Exception as e:
-                pass
-            try:
-                bot.delete_message(chat_id, ids_3_otmena[game_code][1])  # Удаляем сообщение 2
-            except Exception as e:
-                pass
-            ids_3_otmena[game_code] = []
-
-            markup = types.InlineKeyboardMarkup(row_width=1)
-            callback_data_podtverdit = f"podtverdit:{game_code}"
-            mozno_li_nazat_gotovo[game_code] = True
-            podtverdit_choice = types.InlineKeyboardButton("Готово!", callback_data=callback_data_podtverdit)
-            now_obnov[game_code] = False
-            choose_the_duration_of_subscription_first_time[game_code] = True
-            markup.add(podtverdit_choice)
-            message = bot.send_message(chat_id, "Когда выберешь колоды, жми", reply_markup=markup)
-            message_id = message.message_id
-            ids_3_gotovo[game_code].append(message_id)  # добавили 3 элементом id сообщения "готово"
-
-            # ids_3_otmena[game_code] = []
-            flag_double_cancel_payment[game_code] = False
-
-
-@bot.pre_checkout_query_handler(func=lambda query: True)
-def checkout(pre_checkout_query):
-    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
-
-@bot.message_handler(content_types=['successful_payment'])
-def got_payment(message):
-    payment_info = message.successful_payment.to_python()
-    game_code = payment_info['invoice_payload'].split(':')[1]
-    # Обработка успешной оплаты
-    bot.send_message(message.chat.id, 'Оплата прошла успешно! Спасибо за покупку.')
-    # Тут можно добавить логику, например, добавление подписки в базу данных
-
-
-# (менюшки с выбором лотов)
-def choose_the_duration_of_subscription(user_id, button, game_code):
-    global ids_3_otmena
-
-    # удаляем кнопку готово
-    if choose_the_duration_of_subscription_first_time[game_code]:
-        gotovo_id = ids_3_gotovo[game_code][2]
-        ids_3_gotovo[game_code].pop()
-        bot.delete_message(user_id, gotovo_id)
-
-    keyboard_1 = telebot.types.InlineKeyboardMarkup()
-    flag_double_oplata[game_code] = False
-    callback_oplata_100 = f"oplata:день:{1}:{100}:{button}:{game_code}"
-    callback_oplata_300 = f"oplata:месяц:{30}:{300}:{button}:{game_code}"
-    callback_oplata_900 = f"oplata:год:{365}:{900}:{button}:{game_code}"
-
-    pay_button_day = types.InlineKeyboardButton(text=f"день: 100 ₽.", callback_data=callback_oplata_100)
-    pay_button_month = telebot.types.InlineKeyboardButton(text=f"мес: 300 ₽.", callback_data=callback_oplata_300)
-    pay_button_year = telebot.types.InlineKeyboardButton(text=f"год: 900 ₽.", callback_data=callback_oplata_900)
-
-    keyboard_1.add(pay_button_day, pay_button_month, pay_button_year)
-    if button == 1:
-        emoji = "🎯"
-    elif button == 2:
-        emoji = "🕺"
-    elif button == 3:
-        emoji = "😻"
-    else:
-        emoji = "⚡️"
-    if not choose_the_duration_of_subscription_first_time[game_code]:
-        try:
-            message_1 = bot.edit_message_text(chat_id=user_id, message_id=ids_3_otmena[game_code][0],
-                                              text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:",
-                                              reply_markup=keyboard_1, parse_mode="HTML")
-            message_1_id = ids_3_otmena[game_code][0]
-        except:
-            message_1_id = ids_3_otmena[game_code][0]
-    else:
-        message_1 = bot.send_message(user_id,
-                                     text=f"Купить <b>доступ к сету «{all_names_of_tarifs[button]}{emoji}»</b> (250 мемов + 100 ситуаций) на период:",
-                                     reply_markup=keyboard_1, parse_mode="HTML")
-        message_1_id = message_1.message_id
-
-    # 1000 - button на все тарифы
-    callback_oplata_600_all = f"oplata:день:{1}:{600}:{1000}:{game_code}"
-    callback_oplata_1800_all = f"oplata:месяц:{30}:{1800}:{1000}:{game_code}"
-    callback_oplata_5400_all = f"oplata:год:{365}:{5400}:{1000}:{game_code}"
-
-    pay_button_day = types.InlineKeyboardButton(text=f"день: 600 ₽.", callback_data=callback_oplata_600_all)
-    pay_button_month = telebot.types.InlineKeyboardButton(text=f"мес: 1800 ₽.", callback_data=callback_oplata_1800_all)
-    pay_button_year = telebot.types.InlineKeyboardButton(text=f"год: 5400 ₽.", callback_data=callback_oplata_5400_all)
-
-    keyboard_2 = telebot.types.InlineKeyboardMarkup()
-    keyboard_2.add(pay_button_day, pay_button_month, pay_button_year)
-    if not choose_the_duration_of_subscription_first_time[game_code]:
-        message_2_id = ids_3_otmena[game_code][1]
-    else:
-        message_2 = bot.send_message(user_id,
-                                     text="Купить <b>полный доступ</b> ко всем существующим и будущим сетам на период:",
-                                     reply_markup=keyboard_2, parse_mode="HTML")
-        message_2_id = message_2.message_id
-
-    call_data = f"otmena_pokupki:{game_code}"
-    # call_data = f"pay_mem:{game_code}"
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    mozno_obnovlat[game_code] = True
-    chestno = types.InlineKeyboardButton(text="Вернуться к выбору карт для игры", callback_data=call_data)
-    markup.row(chestno)
-
-    if not choose_the_duration_of_subscription_first_time[game_code]:
-        message_3_id = ids_3_otmena[game_code][2]
-    else:
-        choose_the_duration_of_subscription_first_time[game_code] = False
-        message_3 = bot.send_message(chat_id=user_id, text="Чтобы вернуться к выбору сетов, нажми на кнопку",
-                                     reply_markup=markup)
-        message_3_id = message_3.message_id
-
-    ids_3_otmena[game_code] = [message_1_id, message_2_id, message_3_id]
-
-
-from telebot import types
 from datetime import datetime, timedelta
 import database
-
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-
 from telebot import types
 
-# @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('oplata:'))
-# def oplata(callback_query):
-#     data = callback_query.data.split(':')
-#     game_code = data[5]
-#     global all_names_of_tarifs
-#     chat_id = callback_query.from_user.id
-#     days_text = data[1]
-#     days_number = data[2]  # 1, 30, 365
-#     price = int(data[3])
-#     price *= 100
-#     button = int(data[4])
 #
-#     if not flag_double_oplata[game_code]:
-#         flag_double_oplata[game_code] = True
-#         try:
-#             bot.delete_message(chat_id, ids_3_otmena[game_code][2])  # вернуться к выбору карт
-#         except:
-#             i = 0
-#         if game_code in flag_mes_oplat_id:
-#             try:
-#                 bot.delete_message(chat_id, flag_mes_oplat_id[game_code])  # прошлая invoice
-#             except:
-#                 i = 0
-#             # ids_3_otmena[game_code].pop(3) #попаем invoice
-#         ids_3_otmena[game_code].pop(2)  # попаем вернуться к выбору
-#
-#         if button != 1000:
-#             name_of_cards = all_names_of_tarifs[int(button)]
-#             prices = [LabeledPrice(label=f'{name_of_cards} на 1 {days_text}', amount=price)]
-#             descrip_text = f'💸 Приобрести "{name_of_cards}" на 1 {days_text} 💸'
-#             title_text = f'Набор {name_of_cards}'
-#
-#         else:
-#             prices = [LabeledPrice(label=f'Все наборы на 1 {days_text}', amount=price)]
-#             descrip_text = f'💸 Приобрести ВСЕ наборы на 1 {days_text} 💸'
-#             title_text = 'ВСЕ наборы'
-#
-#         call_data = f"pay_mem:{game_code}"
-#         markup = types.InlineKeyboardMarkup(row_width=1)
-#         mozno_obnovlat[game_code] = True
-#         chestno = types.InlineKeyboardButton(text="Вернуться к выбору карт для игры", callback_data=call_data)
-#         markup.row(chestno)
-#
-#         invoice_message = bot.send_invoice(
-#             chat_id,
-#             title=title_text,
-#             description=descrip_text,
-#             provider_token='381764678:TEST:66986',
-#             currency='rub',
-#             prices=prices,
-#             start_parameter='start',
-#             invoice_payload=f'{chat_id} {callback_query.from_user.username} {button} {days_number}'
-#         )
-#
-#         flag_mes_oplat_id[game_code] = invoice_message.message_id
-#
-#         message_3 = bot.send_message(chat_id, text="Чтобы вернуться к выбору сетов, нажми на кнопку",
-#                                      reply_markup=markup)
-#         message_3_id = message_3.message_id
-#
-#         ids_3_otmena[game_code].append(message_3_id)  # вернуться
-#         # ids_3_otmena[game_code].append(invoice_message.message_id) # invoce
-#         flag_double_oplata[game_code] = False
-
-########
-
-
-# @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('oplata:'))
-# def oplata(callback_query):
-#     data = callback_query.data.split(':')
-#     game_code = data[5]
-#     global all_names_of_tarifs
-#     chat_id = callback_query.from_user.id
-#     days_text = data[1]
-#     days_number = data[2]  # 1, 30, 365
-#     price = int(data[3])
-#     price *= 100
-#     button = int(data[4])
-#
-#     if not flag_double_oplata[game_code]:
-#         flag_double_oplata[game_code] = True
-#         try:
-#             bot.delete_message(chat_id, ids_3_otmena[game_code][2])  # вернуться к выбору карт
-#         except:
-#             i = 0
-#         if game_code in flag_mes_oplat_id:
-#             try:
-#                 bot.delete_message(chat_id, flag_mes_oplat_id[game_code])  # прошлая invoice
-#             except:
-#                 i = 0
-#             # ids_3_otmena[game_code].pop(3) #попаем invoice
-#         ids_3_otmena[game_code].pop(2)  # попаем вернуться к выбору
-#
-#         if button != 1000:
-#             name_of_cards = all_names_of_tarifs[int(button)]
-#             prices = [LabeledPrice(label=f'{name_of_cards} на 1 {days_text}', amount=price)]
-#             descrip_text = f'💸 Приобрести "{name_of_cards}" на 1 {days_text} 💸'
-#             title_text = f'Набор {name_of_cards}'
-#
-#         else:
-#             prices = [LabeledPrice(label=f'Все наборы на 1 {days_text}', amount=price)]
-#             descrip_text = f'💸 Приобрести ВСЕ наборы на 1 {days_text} 💸'
-#             title_text = 'ВСЕ наборы'
-#
-#         call_data = f"pay_mem:{game_code}"
-#         markup = types.InlineKeyboardMarkup(row_width=1)
-#         mozno_obnovlat[game_code] = True
-#         chestno = types.InlineKeyboardButton(text="Вернуться к выбору карт для игры", callback_data=call_data)
-#         markup.row(chestno)
-#
-#         invoice_message = bot.send_invoice(
-#             chat_id,
-#             title=title_text,
-#             description=descrip_text,
-#             provider_token='381764678:TEST:66986',
-#             currency='rub',
-#             prices=prices,
-#             start_parameter='start',
-#             invoice_payload=f'{chat_id} {callback_query.from_user.username} {button} {days_number}'
-#         )
-#
-#         flag_mes_oplat_id[game_code] = invoice_message.message_id
-#
-#         message_3 = bot.send_message(chat_id, text="Чтобы вернуться к выбору сетов, нажми на кнопку",
-#                                      reply_markup=markup)
-#         message_3_id = message_3.message_id
-#
-#         ids_3_otmena[game_code].append(message_3_id)  # вернуться
-#         # ids_3_otmena[game_code].append(invoice_message.message_id) # invoce
-#         flag_double_oplata[game_code] = False
-#
-
-# @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('meme_tarif:'))
-
-
-#############
-
-
-
-
-#
-# @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('pay_mem:'))
+# @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('otmena_pokupki:'))
 # def payment(callback_query):
-#     global now_obnov
 #     global mozno_li_nazat_gotovo
+#     global now_obnov
 #     data = callback_query.data.split(':')
 #     game_code = data[1]
 #     player_id = callback_query.from_user.id
-#     if mozno_obnovlat[game_code]:
-#         mozno_obnovlat[game_code] = False
-#         # удаляем все прошлые сообщения
-#         for mes_id in ids_3_gotovo[game_code]:
-#             bot.delete_message(player_id, mes_id)
-#         for mes_id in ids_3_otmena[game_code]:
-#             bot.delete_message(player_id, mes_id)
-#         ids_3_otmena[game_code] = []
-#         ids_3_gotovo[game_code] = []
-#         if game_code in flag_mes_oplat_id:
-#             del flag_mes_oplat_id[game_code]
 #
-#         # высылаем новые сообщения с кнопками и готово
-#         message_id_1, message_id_2 = chose_deck_of_cards(player_id, game_code)
-#         ids_3_gotovo[game_code].append(message_id_1)
-#         ids_3_gotovo[game_code].append(message_id_2)
+#     # удаляем 3 сообщения
+#     for id_mess in ids_3_otmena[game_code]:
+#         bot.delete_message(player_id, id_mess)
+#     ids_3_otmena[game_code] = []
 #
-#         markup = types.InlineKeyboardMarkup(row_width=1)
-#         callback_data_podtverdit = f"podtverdit:{game_code}"
-#         mozno_li_nazat_gotovo[game_code] = True
-#         podtverdit_choice = types.InlineKeyboardButton("Готово!", callback_data=callback_data_podtverdit)
-#         now_obnov[game_code] = False
-#         choose_the_duration_of_subscription_first_time[game_code] = True
-#         markup.add(podtverdit_choice)
-#         message = bot.send_message(player_id, "Когда выберешь колоды, жми", reply_markup=markup)
-#         message_id = message.message_id
-#
-#         ids_3_gotovo[game_code].append(message_id)  # добавили 3 элементом id сообщения "готово"
+#     # высылаем кнопку готово и добавляем её в массив
+#     markup = types.InlineKeyboardMarkup(row_width=1)
+#     callback_data_podtverdit = f"podtverdit:{game_code}"
+#     mozno_li_nazat_gotovo[game_code] = True
+#     podtverdit_choice = types.InlineKeyboardButton("Готово!", callback_data=callback_data_podtverdit)
+#     now_obnov[game_code] = False
+#     choose_the_duration_of_subscription_first_time[game_code] = True
+#     markup.add(podtverdit_choice)
+#     message = bot.send_message(player_id, "Когда выберешь колоды, жми", reply_markup=markup)
+#     message_id = message.message_id
+#     ids_3_gotovo[game_code].append(message_id)  # добавили 3 элементом id сообщения "готово"
 #
 #
-@bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('otmena_pokupki:'))
-def payment(callback_query):
-    global mozno_li_nazat_gotovo
-    global now_obnov
-    data = callback_query.data.split(':')
-    game_code = data[1]
-    player_id = callback_query.from_user.id
-
-    # удаляем 3 сообщения
-    for id_mess in ids_3_otmena[game_code]:
-        bot.delete_message(player_id, id_mess)
-    ids_3_otmena[game_code] = []
-
-    # высылаем кнопку готово и добавляем её в массив
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    callback_data_podtverdit = f"podtverdit:{game_code}"
-    mozno_li_nazat_gotovo[game_code] = True
-    podtverdit_choice = types.InlineKeyboardButton("Готово!", callback_data=callback_data_podtverdit)
-    now_obnov[game_code] = False
-    choose_the_duration_of_subscription_first_time[game_code] = True
-    markup.add(podtverdit_choice)
-    message = bot.send_message(player_id, "Когда выберешь колоды, жми", reply_markup=markup)
-    message_id = message.message_id
-    ids_3_gotovo[game_code].append(message_id)  # добавили 3 элементом id сообщения "готово"
-
-
-# @bot.pre_checkout_query_handler(func=lambda query: True)
-# def process_pre_checkout_query(pre_checkout_query):
-#     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
-
-
-# СИТУАЦИИ
+# # СИТУАЦИИ
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('sit_tarif:'))
 def chose_tarif_sit(callback_query):
     with message_list_lock:
@@ -755,45 +558,44 @@ def chose_tarif_sit(callback_query):
         game_code = data[1]
         button = int(data[2])
 
+        # if button not in all_available_tarifs_sit[game_code]:
+        #     choose_the_duration_of_subscription(player_id, button, game_code)
+        # else:
+        if button not in nazat_tarifs_sit[game_code]:  # кнопка ненажата -> нажата = зеленый
+            nazat_tarifs_sit[game_code].append(button)
+            kolvo_naz_green_sit[game_code] += 1
+        else:  # кнопка была нажата, теперь нет -> белый
+            nazat_tarifs_sit[game_code].remove(button)
+            kolvo_naz_green_sit[game_code] -= 1
+        logos = []
+        for number in range(5):  # проходимся по всем кнопкам
+            if number in nazat_tarifs_sit[game_code]:  # должна быть зелёной
+                logos.append("🟢️ ")
+            # удалить потом когда подключат оплату
+            else:
+                logos.append("⚪ ")
+            # elif number in all_available_tarifs_sit[game_code]:  # доступна, но не нажата (белый)
+            #     logos.append("⚪️ ")
+            # else:  # замок
+            #     logos.append("💰")
 
-
-        if button not in all_available_tarifs_sit[game_code]:
-            choose_the_duration_of_subscription(player_id, button, game_code)
-        else:
-            if button not in nazat_tarifs_sit[game_code]:  # кнопка ненажата -> нажата = зеленый
-                nazat_tarifs_sit[game_code].append(button)
-                kolvo_naz_green_sit[game_code] += 1
-            else:  # кнопка была нажата, теперь нет -> белый
-                nazat_tarifs_sit[game_code].remove(button)
-                kolvo_naz_green_sit[game_code] -= 1
-            logos = []
-            for number in range(5):  # проходимся по всем кнопкам
-                if number in nazat_tarifs_sit[game_code]:  # должна быть зелёной
-                    logos.append("🟢️ ")
-
-                elif number in all_available_tarifs_sit[game_code]:  # доступна, но не нажата (белый)
-                    logos.append("⚪️ ")
-
-                else:  # замок
-                    logos.append("💰")
-
-            # выбор мемов
-            demo_sit = f"sit_tarif:{game_code}:{0}"
-            base_sit = f"sit_tarif:{game_code}:{1}"
-            cccp_sit = f"sit_tarif:{game_code}:{2}"
-            cats_sit = f"sit_tarif:{game_code}:{3}"
-            neiro_sit = f"sit_tarif:{game_code}:{4}"
-            markup = types.InlineKeyboardMarkup(row_width=2)
-            demo = types.InlineKeyboardButton(f"{logos[0]}Демка (по 10 из всех сетов)", callback_data=demo_sit)
-            base = types.InlineKeyboardButton(f"{logos[1]}База (100 шт.)", callback_data=base_sit)
-            cccp = types.InlineKeyboardButton(f"{logos[2]}СССР (100 шт.)", callback_data=cccp_sit)
-            cats = types.InlineKeyboardButton(f"{logos[3]}Котики (100 шт.)", callback_data=cats_sit)
-            neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (100 шт.)", callback_data=neiro_sit)
-            markup.row(demo)
-            markup.add(base, cccp, cats, neiro)
-            bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id,
-                                  text=f"И ещё потрудись выбрать карты ситуаций:",
-                                  reply_markup=markup)
+        # выбор мемов
+        demo_sit = f"sit_tarif:{game_code}:{0}"
+        base_sit = f"sit_tarif:{game_code}:{1}"
+        cccp_sit = f"sit_tarif:{game_code}:{2}"
+        cats_sit = f"sit_tarif:{game_code}:{3}"
+        neiro_sit = f"sit_tarif:{game_code}:{4}"
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        demo = types.InlineKeyboardButton(f"{logos[0]}Демка (по 10 из всех сетов)", callback_data=demo_sit)
+        base = types.InlineKeyboardButton(f"{logos[1]}База (100 шт.)", callback_data=base_sit)
+        cccp = types.InlineKeyboardButton(f"{logos[2]}СССР (100 шт.)", callback_data=cccp_sit)
+        cats = types.InlineKeyboardButton(f"{logos[3]}Котики (100 шт.)", callback_data=cats_sit)
+        neiro = types.InlineKeyboardButton(f"{logos[4]}НЕЙРО (100 шт.)", callback_data=neiro_sit)
+        markup.row(demo)
+        markup.add(base, cccp, cats, neiro)
+        bot.edit_message_text(chat_id=player_id, message_id=callback_query.message.message_id,
+                              text=f"И ещё потрудись выбрать карты ситуаций:",
+                              reply_markup=markup)
 
 
 # выбор колоды мемов и ситуаций
@@ -831,51 +633,57 @@ def chose_deck_of_cards(player_id, game_code):
     neiro_meme = f"meme_tarif:{game_code}:{4}"
     markup = types.InlineKeyboardMarkup(row_width=2)
     demo = types.InlineKeyboardButton("🟢️ Демка (по 10 из всех сетов)", callback_data=demo_meme)
-    # если подписок вообще нет
-    if not user_subscriptions:
-        base = types.InlineKeyboardButton("💰База (250 шт.)", callback_data=base_meme)
-        cccp = types.InlineKeyboardButton("💰СССР (250 шт.)", callback_data=cccp_meme)
-        cats = types.InlineKeyboardButton("💰Котики (250 шт.)", callback_data=cats_meme)
-        neiro = types.InlineKeyboardButton("💰НЕЙРО (250 шт.)", callback_data=neiro_meme)
-    # если есть подписка на что-то
-    else:
-        # Получить текущую дату и время
-        current_datetime = datetime.datetime.now()
+    # без оплаты всё доступно
+    base = types.InlineKeyboardButton("⚪️ База (250 шт.)", callback_data=base_meme)
+    cccp = types.InlineKeyboardButton("⚪️ СССР (250 шт.)", callback_data=cccp_meme)
+    cats = types.InlineKeyboardButton("⚪️ Котики (250 шт.)", callback_data=cats_meme)
+    neiro = types.InlineKeyboardButton("⚪ НЕЙРО (250 шт.)", callback_data=neiro_meme)
 
-        tarifs_and_data = {}  # тарифы - ключи, даты-values
-        print(tarifs_and_data)
-        for raw in user_subscriptions:
-            # добавляем тариф
-            if raw['tarif'] not in tarifs_and_data:
-                tarifs_and_data[raw['tarif']] = [raw['expiration_date']]
-            # если несколь дат, то добавляем и сортируем
-            else:
-                tarifs_and_data[raw['tarif']].append(raw['expiration_date'])
-                tarifs_and_data[raw['tarif']].sort()
-        if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1],
-                                                                    "%d.%m.%Y %H:%M:%S") > current_datetime:
-            base = types.InlineKeyboardButton("⚪️ База (250 шт.)", callback_data=base_meme)
-            all_available_tarifs_memes[game_code].append(1)
-        else:
-            base = types.InlineKeyboardButton("💰База (250 шт.)", callback_data=base_meme)
-        if "СССР" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["СССР"][-1],
-                                                                    "%d.%m.%Y %H:%M:%S") > current_datetime:
-            cccp = types.InlineKeyboardButton("⚪️ СССР (250 шт.)", callback_data=cccp_meme)
-            all_available_tarifs_memes[game_code].append(2)
-        else:
-            cccp = types.InlineKeyboardButton("💰СССР (250 шт.)", callback_data=cccp_meme)
-        if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1],
-                                                                      "%d.%m.%Y %H:%M:%S") > current_datetime:
-            cats = types.InlineKeyboardButton("⚪️ Котики (250 шт.)", callback_data=cats_meme)
-            all_available_tarifs_memes[game_code].append(3)
-        else:
-            cats = types.InlineKeyboardButton("💰Котики (250 шт.)", callback_data=cats_meme)
-        if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1],
-                                                                     "%d.%m.%Y %H:%M:%S") > current_datetime:
-            neiro = types.InlineKeyboardButton("⚪ НЕЙРО (250 шт.)", callback_data=neiro_meme)
-            all_available_tarifs_memes[game_code].append(4)
-        else:
-            neiro = types.InlineKeyboardButton("💰НЕЙРО (250 шт.)", callback_data=neiro_meme)
+    # если подписок вообще нет
+    # if not user_subscriptions:
+    #     base = types.InlineKeyboardButton("💰База (250 шт.)", callback_data=base_meme)
+    #     cccp = types.InlineKeyboardButton("💰СССР (250 шт.)", callback_data=cccp_meme)
+    #     cats = types.InlineKeyboardButton("💰Котики (250 шт.)", callback_data=cats_meme)
+    #     neiro = types.InlineKeyboardButton("💰НЕЙРО (250 шт.)", callback_data=neiro_meme)
+    # # если есть подписка на что-то
+    # else:
+    #     # Получить текущую дату и время
+    #     current_datetime = datetime.datetime.now()
+    #
+    #     tarifs_and_data = {}  # тарифы - ключи, даты-values
+    #     print(tarifs_and_data)
+    #     for raw in user_subscriptions:
+    #         # добавляем тариф
+    #         if raw['tarif'] not in tarifs_and_data:
+    #             tarifs_and_data[raw['tarif']] = [raw['expiration_date']]
+    #         # если несколь дат, то добавляем и сортируем
+    #         else:
+    #             tarifs_and_data[raw['tarif']].append(raw['expiration_date'])
+    #             tarifs_and_data[raw['tarif']].sort()
+    #     if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1],
+    #                                                                 "%d.%m.%Y %H:%M:%S") > current_datetime:
+    #         base = types.InlineKeyboardButton("⚪️ База (250 шт.)", callback_data=base_meme)
+    #         all_available_tarifs_memes[game_code].append(1)
+    #     else:
+    #         base = types.InlineKeyboardButton("💰База (250 шт.)", callback_data=base_meme)
+    #     if "СССР" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["СССР"][-1],
+    #                                                                 "%d.%m.%Y %H:%M:%S") > current_datetime:
+    #         cccp = types.InlineKeyboardButton("⚪️ СССР (250 шт.)", callback_data=cccp_meme)
+    #         all_available_tarifs_memes[game_code].append(2)
+    #     else:
+    #         cccp = types.InlineKeyboardButton("💰СССР (250 шт.)", callback_data=cccp_meme)
+    #     if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1],
+    #                                                                   "%d.%m.%Y %H:%M:%S") > current_datetime:
+    #         cats = types.InlineKeyboardButton("⚪️ Котики (250 шт.)", callback_data=cats_meme)
+    #         all_available_tarifs_memes[game_code].append(3)
+    #     else:
+    #         cats = types.InlineKeyboardButton("💰Котики (250 шт.)", callback_data=cats_meme)
+    #     if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1],
+    #                                                                  "%d.%m.%Y %H:%M:%S") > current_datetime:
+    #         neiro = types.InlineKeyboardButton("⚪ НЕЙРО (250 шт.)", callback_data=neiro_meme)
+    #         all_available_tarifs_memes[game_code].append(4)
+    #     else:
+    #         neiro = types.InlineKeyboardButton("💰НЕЙРО (250 шт.)", callback_data=neiro_meme)
     markup.row(demo)
     markup.add(base, cccp, cats, neiro)
     message = bot.send_message(player_id, f"Приятель, тебе придётся выбрать набор мемов-картинок:", reply_markup=markup)
@@ -888,50 +696,57 @@ def chose_deck_of_cards(player_id, game_code):
     neiro_sit = f"sit_tarif:{game_code}:{4}"
     markup = types.InlineKeyboardMarkup(row_width=2)
     demo = types.InlineKeyboardButton("🟢️ Демка (по 10 из всех сетов)", callback_data=demo_sit)
-    # если подписок вообще нет
-    if not user_subscriptions:
-        base = types.InlineKeyboardButton("💰База (100 шт.)", callback_data=base_sit)
-        cccp = types.InlineKeyboardButton("💰СССР (100 шт.)", callback_data=cccp_sit)
-        cats = types.InlineKeyboardButton("💰Котики (100 шт.)", callback_data=cats_sit)
-        neiro = types.InlineKeyboardButton("💰НЕЙРО (100 шт.)", callback_data=neiro_sit)
-    # если есть подписка на что-то
-    else:
-        # Получить текущую дату и время
-        current_datetime = datetime.datetime.now()
 
-        tarifs_and_data = {}  # тарифы - ключи, даты-values
-        for raw in user_subscriptions:
-            # добавляем тариф
-            if raw['tarif'] not in tarifs_and_data:
-                tarifs_and_data[raw['tarif']] = [raw['expiration_date']]
-            # если несколь дат, то добавляем и сортируем
-            else:
-                tarifs_and_data[raw['tarif']].append(raw['expiration_date'])
-                tarifs_and_data[raw['tarif']].sort()
-        if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1],
-                                                                    "%d.%m.%Y %H:%M:%S") > current_datetime:
-            base = types.InlineKeyboardButton("⚪️ База (100 шт.)", callback_data=base_sit)
-            all_available_tarifs_sit[game_code].append(1)
-        else:
-            base = types.InlineKeyboardButton("💰База (100 шт.)", callback_data=base_sit)
-        if "СССР" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["СССР"][-1],
-                                                                    "%d.%m.%Y %H:%M:%S") > current_datetime:
-            cccp = types.InlineKeyboardButton("⚪️ СССР (100 шт.)", callback_data=cccp_sit)
-            all_available_tarifs_sit[game_code].append(2)
-        else:
-            cccp = types.InlineKeyboardButton("💰СССР (100 шт.)", callback_data=cccp_sit)
-        if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1],
-                                                                      "%d.%m.%Y %H:%M:%S") > current_datetime:
-            cats = types.InlineKeyboardButton("⚪️ Котики (100 шт.)", callback_data=cats_sit)
-            all_available_tarifs_sit[game_code].append(3)
-        else:
-            cats = types.InlineKeyboardButton("💰Котики (100 шт.)", callback_data=cats_sit)
-        if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1],
-                                                                     "%d.%m.%Y %H:%M:%S") > current_datetime:
-            neiro = types.InlineKeyboardButton("⚪ НЕЙРО (100 шт.)", callback_data=neiro_sit)
-            all_available_tarifs_sit[game_code].append(4)
-        else:
-            neiro = types.InlineKeyboardButton("💰НЕЙРО (100 шт.)", callback_data=neiro_sit)
+    # всё доступно ничего не платим
+    base = types.InlineKeyboardButton("⚪️ База (100 шт.)", callback_data=base_sit)
+    cccp = types.InlineKeyboardButton("⚪️ СССР (100 шт.)", callback_data=cccp_sit)
+    cats = types.InlineKeyboardButton("⚪️ Котики (100 шт.)", callback_data=cats_sit)
+    neiro = types.InlineKeyboardButton("⚪ НЕЙРО (100 шт.)", callback_data=neiro_sit)
+
+    # # если подписок вообще нет
+    # if not user_subscriptions:
+    #     base = types.InlineKeyboardButton("💰База (100 шт.)", callback_data=base_sit)
+    #     cccp = types.InlineKeyboardButton("💰СССР (100 шт.)", callback_data=cccp_sit)
+    #     cats = types.InlineKeyboardButton("💰Котики (100 шт.)", callback_data=cats_sit)
+    #     neiro = types.InlineKeyboardButton("💰НЕЙРО (100 шт.)", callback_data=neiro_sit)
+    # # если есть подписка на что-то
+    # else:
+    #     # Получить текущую дату и время
+    #     current_datetime = datetime.datetime.now()
+    #
+    #     tarifs_and_data = {}  # тарифы - ключи, даты-values
+    #     for raw in user_subscriptions:
+    #         # добавляем тариф
+    #         if raw['tarif'] not in tarifs_and_data:
+    #             tarifs_and_data[raw['tarif']] = [raw['expiration_date']]
+    #         # если несколь дат, то добавляем и сортируем
+    #         else:
+    #             tarifs_and_data[raw['tarif']].append(raw['expiration_date'])
+    #             tarifs_and_data[raw['tarif']].sort()
+    #     if "База" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["База"][-1],
+    #                                                                 "%d.%m.%Y %H:%M:%S") > current_datetime:
+    #         base = types.InlineKeyboardButton("⚪️ База (100 шт.)", callback_data=base_sit)
+    #         all_available_tarifs_sit[game_code].append(1)
+    #     else:
+    #         base = types.InlineKeyboardButton("💰База (100 шт.)", callback_data=base_sit)
+    #     if "СССР" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["СССР"][-1],
+    #                                                                 "%d.%m.%Y %H:%M:%S") > current_datetime:
+    #         cccp = types.InlineKeyboardButton("⚪️ СССР (100 шт.)", callback_data=cccp_sit)
+    #         all_available_tarifs_sit[game_code].append(2)
+    #     else:
+    #         cccp = types.InlineKeyboardButton("💰СССР (100 шт.)", callback_data=cccp_sit)
+    #     if "Котики" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["Котики"][-1],
+    #                                                                   "%d.%m.%Y %H:%M:%S") > current_datetime:
+    #         cats = types.InlineKeyboardButton("⚪️ Котики (100 шт.)", callback_data=cats_sit)
+    #         all_available_tarifs_sit[game_code].append(3)
+    #     else:
+    #         cats = types.InlineKeyboardButton("💰Котики (100 шт.)", callback_data=cats_sit)
+    #     if "НЕЙРО" in tarifs_and_data and datetime.datetime.strptime(tarifs_and_data["НЕЙРО"][-1],
+    #                                                                  "%d.%m.%Y %H:%M:%S") > current_datetime:
+    #         neiro = types.InlineKeyboardButton("⚪ НЕЙРО (100 шт.)", callback_data=neiro_sit)
+    #         all_available_tarifs_sit[game_code].append(4)
+    #     else:
+    #         neiro = types.InlineKeyboardButton("💰НЕЙРО (100 шт.)", callback_data=neiro_sit)
     markup.row(demo)
     markup.add(base, cccp, cats, neiro)
     message2 = bot.send_message(player_id, f"И ещё потрудись выбрать карты ситуаций:", reply_markup=markup)
