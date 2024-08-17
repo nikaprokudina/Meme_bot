@@ -89,6 +89,7 @@ mozno_nazad_v_menu = {}
 message_list_lock = threading.Lock()
 
 mozno_play_again = {}
+mozno_start_the_game = {}
 
 #оплата
 # flag_double_oplata = {}
@@ -175,8 +176,8 @@ def update_players_message(game_code, new_player_id, creator_name):
 def generate_game_code():
     try:
         code = ''.join(random.choices(string.digits, k=6))
-        # return code
-        return '000000'
+        return code
+        # return '000000'
     except Exception as e:
         logging.error(f"Ошибка при генерации кода игры: {e}")
         return None
@@ -184,6 +185,28 @@ def generate_game_code():
 # старт: присоединиться к игре или создать новую
 @bot.message_handler(commands=['start'])
 def start(message):
+    # дропаем прошлую игру
+    player_id = message.chat.id
+    try:
+        # print(str(len(all_players_and_their_codes)))
+        if player_id in all_players_and_their_codes and all_players_and_their_codes[player_id] in active_games:
+            last_game_code = all_players_and_their_codes[player_id]
+            pl_name = id_and_names[last_game_code][player_id]
+            #     если криейтор, то дропаем игру у всех
+            if player_id == active_games[last_game_code]['creator']:
+                for pl_id in active_games[last_game_code]['players']:
+                    if pl_id == player_id:
+                        bot.send_message(pl_id, "Вы завершили активную игру.")
+                    else:
+                        bot.send_message(pl_id, f"Ведущий {pl_name} завершил игру.")
+                        a_nu_ka_main_menu_all(last_game_code)
+                delete_stuff_for_repeat(last_game_code)
+                delete_rest_stuff(last_game_code)
+            else:
+                bot.send_message(player_id, f"Отключаем вас от прошлой активной игры.")
+    except Exception as e:
+        logging.error(f"Ошибка при отключении при старте в all_players_and_their_codes: {e}")
+
     try:
         markup = types.InlineKeyboardMarkup(row_width=1)
         new_game_button = types.InlineKeyboardButton("Новая игра", callback_data="new_game")
@@ -210,19 +233,12 @@ def main_menu(callback_query):
         if game_code in active_games and player_id == active_games[game_code]['creator']:
             delete_stuff_for_repeat(game_code)
             delete_rest_stuff(game_code)
-
             # del kolvo_naz_green_buttons[game_code]
             # del kolvo_naz_green_sit[game_code]
-
-
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        new_game_button = types.InlineKeyboardButton("Новая игра", callback_data="new_game")
-        join_game_button = types.InlineKeyboardButton("Присоединиться к игре", callback_data="join_game")
-        rules_button = types.InlineKeyboardButton("Правила игры", callback_data="rules")
-        markup.add(new_game_button, join_game_button, rules_button)
-        bot.send_message(player_id, text="А ну-ка, выбирай!", reply_markup=markup)
-    except Exception as e:
-            logging.error(f"Ошибка в обработчике главного меню: {e}")
+        a_nu_ka_main_menu(player_id)
+    except:
+        pass
+            # logging.error(f"Ошибка в обработчике главного меню: {e}")
 
 # правила игры
 @bot.callback_query_handler(func=lambda message: message.data == 'rules')
@@ -237,9 +253,25 @@ def rules(message):
         markup = types.InlineKeyboardMarkup(row_width=1)
         back_button = types.InlineKeyboardButton("Назад в меню", callback_data=callback_data_leave)
         markup.add(back_button)
-        bot.send_message(player_id, f"ляля тут будут правила", reply_markup=markup)
+        bot.send_message(player_id, f"<b>💥 КАК ИГРАТЬ? 💥</b> \n\n🔹 Раздай <b>всем по 5 карт мемов.</b> \n"
+                                    f"🔹 Положи колоды мемов и ситуаций в центре стола.\n"
+                                    f"🔹 Стань судьёй на первый раунд!", parse_mode="HTML")
+
+        bot.send_message(player_id, "<b>🎰 РАУНД ИГРЫ 🎰</b> \n\n"
+                                    "<code>1.</code> <b>Судья читает карту ситуации.</b> \n"
+                                    "<code>2.</code> <b>Все</b> (кроме судьи) <b>как можно быстрее</b> из карт в руке <b>выкладывают лучший мем</b> в центр стола лицом вниз! \n"
+                                    "<code>3.</code> <b>Судья открывает мемы</b> по-очереди, начиная с верхней карты. Верхняя (сыгранная позже) - открывается рядом с колодой, следующие - под ней (карта, сыгранная первой, окажется дальше всех от колоды).\n"
+                                    "<code>4.</code> <b>Cудья выбирает лучший мем!</b> \n"
+                                    "<code>5.</code> <b>Победитель</b> (чей это был мем) <b>забирает эту карту и все, что выше</b> (сыгранные позже) и кладет перед собой - это его победная стопка карт! \n"
+                                    "<code>6.</code> Все пополняют руку до 6 карт. \n\n"
+                                    "<i>Следующий - новый судья на новый раунд.</i>\n"
+                                    "<i>Закончилась колода / привезли пиццу? Считайте карты в победных стопках. У кого больше - тот мемолог!</i>",
+                         parse_mode="HTML")
+
+
     except Exception as e:
-        logging.error(f"Ошибка в обработчике правил игры: {e}")
+        pass
+        # logging.error(f"Ошибка в обработчике правил игры: {e}")
 
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('meme_tarif:'))
@@ -800,6 +832,8 @@ def chose_deck_of_cards(player_id, game_code):
     except Exception as e:
         logging.error(f"Ошибка при выборе колоды мемов и ситуаций: {e}")
 
+# список всех пользователей и коды их игр на данный момент
+all_players_and_their_codes = {}
 
 # новая игра
 @bot.callback_query_handler(func=lambda message: message.data == 'new_game')
@@ -810,6 +844,27 @@ def new_game(message):
         pl_name = message.from_user.first_name
         game_code = generate_game_code()
         ids_3_gotovo[game_code] = []
+        # перед этим попробовать удалить из all_players_and_their_codes если есть и отключить игру
+        all_players_and_their_codes[player_id] = game_code
+
+        # try:
+        #     if player_id in all_players_and_their_codes and all_players_and_their_codes[player_id] in active_games:
+        #         last_game_code = all_players_and_their_codes[player_id]
+        #         #     если криейтор, то дропаем игру у всех
+        #         if player_id == active_games[last_game_code]['creator']:
+        #             for pl_id in active_games[last_game_code]['players']:
+        #                 if pl_id != player_id:
+        #                     bot.send_message(pl_id, "Вы завершили активную игру.")
+        #                 else:
+        #                     bot.send_message(pl_id, f"Ведущий {pl_name} завершил игру.")
+        #             a_nu_ka_main_menu_all(last_game_code)
+        #             delete_stuff_for_repeat(last_game_code)
+        #             delete_rest_stuff(last_game_code)
+        #         else:
+        #             bot.send_message(player_id, f"Отключаем вас от прошлой активной игры.")
+        # except Exception as e:
+        #     logging.error(f"Ошибка при отключении при старте в all_players_and_their_codes: {e}")
+
     except Exception as e:
         logging.error(f"Ошибка при создании новой игры: {e}")
 
@@ -897,6 +952,7 @@ def podtverdit_choices(callback_query):
 
             markup = types.InlineKeyboardMarkup(row_width=2)
             callback_data_start = f"start:{game_code}:{message_id_1}"
+            mozno_start_the_game[game_code] = True
             start_game_button = types.InlineKeyboardButton("Начать игру", callback_data=callback_data_start)
             callback_data_drop = f"drop:{game_code}:{message_id_1}:{message_id_2}"
             mozno_nazad_v_menu[game_code] = True
@@ -972,8 +1028,9 @@ def join_game(message):
         back_button = types.InlineKeyboardButton("Назад в меню", callback_data=callback_data_leave)
         markup.add(back_button)
         bot.send_message(player_id, f"Введите код игры", reply_markup=markup)
-    except Exception as e:
-        logging.error(f"Ошибка при создании сообщения ввода кода игры для пользователя: {e}")
+    except:
+        pass
+        # logging.error(f"Ошибка при создании сообщения ввода кода игры для пользователя: {e}")
 
 
 # чтение текста (код игры)
@@ -1025,6 +1082,27 @@ def join_existing_game(player_id, pl_name, game_code):
         elif player_id in players:
             bot.send_message(player_id, f"Вы уже присоединены к этой игре.")
         else:
+            # перед этим удалить
+            all_players_and_their_codes[player_id] = game_code
+
+            # try:
+            #     if player_id in all_players_and_their_codes and game_code in active_games:
+            #         all_players_and_their_codes[player_id] = game_code
+            #     #     если криейтор, то дропаем игру у всех
+            #         if player_id == active_games[game_code]['creator']:
+            #             for pl_id in active_games[game_code]['players']:
+            #                 if pl_id != player_id:
+            #                     bot.send_message(pl_id, "Вы завершили активную игру.")
+            #                 else:
+            #                     bot.send_message(pl_id, f"Ведущий {pl_name} завершил игру.")
+            #             a_nu_ka_main_menu_all(game_code)
+            #             delete_stuff_for_repeat(game_code)
+            #             delete_rest_stuff(game_code)
+            #         else:
+            #             bot.send_message(player_id, f"Отключаем вас от прошлой активной игры.")
+            # except Exception as e:
+            #     logging.error(f"Ошибка при отключении во время присоединения в all_players_and_their_codes: {e}")
+
             bot.send_message(player_id, f"Вы присоединились к игре.")
             active_games[game_code]['players'].append(player_id)
             active_games[game_code]['usernames'].append(pl_name)
@@ -1049,45 +1127,47 @@ def start_game(callback_query):
         player_id = callback_query.from_user.id
         game_code = data[1]
         message_id_1 = data[2]
-        if game_code in nazat_tarifs_memes and len(nazat_tarifs_memes[game_code]) == 0:
-            bot.send_message(player_id, "Нужно выбрать хотябы 1 набор, чтобы начать игру.")
-        else:
-            # message_id_2 = data[3]
-            # основное тело
-            chat_id = callback_query.message.chat.id
-            game_code = None
-            for code, game in active_games.items():
-                if game['creator'] == callback_query.from_user.id:
-                    game_code = code
-                    break
-            if game_code in remember_players:
-                del remember_players[game_code]
-            if game_code:
-                players = active_games[game_code]['players']
-                if len(players) >= 1:  # Проверка количества игроков
-
-                    # удаляем прошлое сообщение
-                    try:
-                        message_id = callback_query.message.message_id
-                        bot.delete_message(player_id, int(message_id_1))
-                        bot.delete_message(player_id, message_id)
-                        active_games[game_code]['game_started'] = True
-                    except Exception as e:
-                        logging.error(f"Ошибка при удалении сообщения с кнопкой начала игры: {e}")
-
-                    send_message_to_players(game_code, "Игра началась!")
-                    rating[game_code] = {}
-                    for player in players:  # добавляем всех в рейтинг
-                        rating[game_code][player] = 0
-                    if len(players) < 4:  # если мало игроков, то добавляем бота
-                        rating[game_code]["bot"] = 0
-                    players_hand_cards(game_code)
-
-                else:
-                    bot.send_message(chat_id, "Нужно хотя бы 2 игрока, чтобы начать игру.")
+        if mozno_start_the_game[game_code]:
+            mozno_start_the_game[game_code] = False
+            if game_code in nazat_tarifs_memes and len(nazat_tarifs_memes[game_code]) == 0:
+                bot.send_message(player_id, "Нужно выбрать хотябы 1 набор, чтобы начать игру.")
             else:
-                bot.send_message(chat_id, "Вы не являетесь создателем игры, поэтому не можете её начать.")
-        mozno_play_again[game_code] = {}
+                # message_id_2 = data[3]
+                # основное тело
+                chat_id = callback_query.message.chat.id
+                game_code = None
+                for code, game in active_games.items():
+                    if game['creator'] == callback_query.from_user.id:
+                        game_code = code
+                        break
+                if game_code in remember_players:
+                    del remember_players[game_code]
+                if game_code:
+                    players = active_games[game_code]['players']
+                    if len(players) >= 1:  # Проверка количества игроков
+
+                        # удаляем прошлое сообщение
+                        try:
+                            message_id = callback_query.message.message_id
+                            bot.delete_message(player_id, int(message_id_1))
+                            bot.delete_message(player_id, message_id)
+                            active_games[game_code]['game_started'] = True
+                        except Exception as e:
+                            logging.error(f"Ошибка при удалении сообщения с кнопкой начала игры: {e}")
+
+                        send_message_to_players(game_code, "Игра началась!")
+                        rating[game_code] = {}
+                        for player in players:  # добавляем всех в рейтинг
+                            rating[game_code][player] = 0
+                        if len(players) < 4:  # если мало игроков, то добавляем бота
+                            rating[game_code]["bot"] = 0
+                        players_hand_cards(game_code)
+
+                    else:
+                        bot.send_message(chat_id, "Нужно хотя бы 2 игрока, чтобы начать игру.")
+                else:
+                    bot.send_message(chat_id, "Вы не являетесь создателем игры, поэтому не можете её начать.")
+            mozno_play_again[game_code] = {}
     except Exception as e:
         logging.error(f"Ошибка при начале игры: {e}\n{traceback.format_exc()}")
 
@@ -1254,9 +1334,10 @@ def random_choice_of_photo(game_code):
 # отправить фото в игру
 def send_photo_to_players(game_code, photo_url):
     try:
-        players = active_games[game_code]['players']
-        for player_id in players:
-            bot.send_photo(player_id, photo_url)
+        if game_code in active_games:
+            players = active_games[game_code]['players']
+            for player_id in players:
+                bot.send_photo(player_id, photo_url)
     except Exception as e:
         logging.error(f"Ошибка при отправке фото игрокам: {e}")
 
@@ -1639,11 +1720,13 @@ def all_cards_on_the_table(game_code, memes):  # дается список фо�
 
 
 voted_battle_cards = {}  # карты, за которые проголосовали
-
-
+# can_vote = {}
 # отправка голосования
 def progolosoval(player_id, game_code, photos_per_row, kolvo_empty, message_idd, kolvo_buttons):
     global all_combined_images
+
+
+
     try:
         if not flag_vse_progolos[game_code]:
             if game_code in voted_players and player_id in voted_players[game_code]:
@@ -1694,6 +1777,7 @@ def progolosoval(player_id, game_code, photos_per_row, kolvo_empty, message_idd,
 
                             new_image = insert_image_to_main(whole_picture, (x, y), 4)
 
+
                             # if len(active_games[game_code]['players']) != len(voted_players[game_code]):
                             bot.edit_message_media(
                                 chat_id=player_id,
@@ -1701,27 +1785,32 @@ def progolosoval(player_id, game_code, photos_per_row, kolvo_empty, message_idd,
                                 media=types.InputMediaPhoto(new_image)
                             )
                         except Exception as e:
-                            logging.error(f"Ошибка при обновлении изображения после голосования: {e}")
+                            logging.error(f"Ошибка при обновлении изображения после голосования: {e}: {traceback.format_exc()}")
+
+        with message_list_lock:
+            try:
+                if game_code in voted_players:
+                    flag_vse_progolos[game_code] = len(active_games[game_code]['players']) == len(
+                        voted_players[game_code])
+                else:
+                    flag_vse_progolos[game_code] = False
+            except Exception as e:
+                logging.error(f"Ошибка при проверке всех голосов для игры {game_code}: {e}")
+
+        if flag_vse_progolos[game_code]:
+            try:
+                # can_vote[game_code] = False
+                del voted_players[game_code]
+                send_message_to_players(game_code, "Все игроки проголосовали! А вот и рейтинг мемолюбов:")
+                progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty)
+            except Exception as e:
+                logging.error(f"Ошибка при завершении голосования для игры {game_code}: {e}")
 
     except Exception as e:
-        logging.error(f"Ошибка в процессе голосования для игры {game_code}: {e}")
+        logging.error(f"Ошибка в процессе голосования для игры {game_code}: {e}: {traceback.format_exc()}")
 
-    with message_list_lock:
-        try:
-            if game_code in voted_players:
-                flag_vse_progolos[game_code] = len(active_games[game_code]['players']) == len(voted_players[game_code])
-            else:
-                flag_vse_progolos[game_code] = False
-        except Exception as e:
-            logging.error(f"Ошибка при проверке всех голосов для игры {game_code}: {e}")
 
-    if flag_vse_progolos[game_code]:
-        try:
-            del voted_players[game_code]
-            send_message_to_players(game_code, "Все игроки проголосовали! А вот и рейтинг мемолюбов:")
-            progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty)
-        except Exception as e:
-            logging.error(f"Ошибка при завершении голосования для игры {game_code}: {e}")
+
 
 
 def progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty):
@@ -1885,6 +1974,7 @@ def progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty):
 
     # новый раунд
     try:
+        time.sleep(3)
         players_hand_cards(game_code)
     except Exception as e:
         logging.error(f"Ошибка при старте нового раунда для игры {game_code}: {e}\n{traceback.format_exc()}")
@@ -2261,11 +2351,14 @@ def table(player_id, game_code):
                         progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty)
                 except Exception as e:
                     logging.error(f"Ошибка в процессе ожидания голосов в table для игры {game_code}: {e}")
+        # перенесла далеко, чтобы было только 1 нажатие на мем карту (Все игроки отправили мемы)
+        flag_pl_otpravil[game_code] = []
+        kolvo_players_that_send_mem[game_code] = 0
     except Exception as e:
         logging.error(f"Ошибка в table: {e}")
 
 # Функция для удаления отредактированного сообщения
-
+nothing_to_send_back_for_mem = {}
 
 # Обработчик callback-запроса
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('combine:'))
@@ -2277,11 +2370,11 @@ def combine_callback_handler(callback_query):
         additional_parameter = data[2]
 
         if additional_parameter == "send_meme_button":  # игрок хочет отправить мем в игру
-            if game_code not in flag_pl_otpravil:
+            if game_code not in flag_pl_otpravil and nothing_to_send_back_for_mem[game_code]:
                 flag_pl_otpravil[game_code] = []
-            if player_id in flag_pl_otpravil[game_code]:
+            if player_id in flag_pl_otpravil[game_code] and nothing_to_send_back_for_mem[game_code]:
                 bot.send_message(player_id, "Ты уже отправил свой мем! Немного подожди:)")
-            else:
+            elif nothing_to_send_back_for_mem[game_code]:
                 flag_pl_otpravil[game_code].append(player_id)
 
                 # запоминаем id чтобы потом удалить
@@ -2314,9 +2407,9 @@ def combine_callback_handler(callback_query):
                 players_order[game_code].append(player_id)  # отсортированный список игроков
 
                 if len(active_games[game_code]['players']) == kolvo_players_that_send_mem[game_code]:
-                    flag_pl_otpravil[game_code] = []
-                    kolvo_players_that_send_mem[game_code] = 0
+                    nothing_to_send_back_for_mem[game_code] = False
                     send_message_to_players(game_code, "Все игроки отправили мемы. Время выбирать самый смешной!")
+
 
                     # удаляем сообщения из чатов
 
@@ -2375,6 +2468,9 @@ def combine_callback_handler(callback_query):
 
             if mozno_li_obnovlat == True:
                 combined_image_io = top_plus_bottom(big_photo, bar)
+                print("mozno")
+            else:
+                print("nelza")
 
                 # плашка
                 main_image = Image.open(big_photo)
@@ -2588,10 +2684,14 @@ def optimization_update_hands(player_id, game_code):
 
 
 def delete_stuff_for_repeat(game_code):
-    try:
+    if game_code in active_games:
+        for pl in active_games[game_code]['players']:
+            try:
+                del all_players_and_their_codes[pl]
+            except Exception as e:
+                logging.error(f"Ошибка при удалении игрока из all_players_and_their_codes: {e}")
+
         del active_games[game_code]
-    except KeyError as e:
-        logging.error(f"Ошибка при удалении из active_games: {e}\n{traceback.format_exc()}")
 
     if game_code in flag_vse_progolos:
         del flag_vse_progolos[game_code]
@@ -2602,10 +2702,8 @@ def delete_stuff_for_repeat(game_code):
     if game_code in chosen_photos:
         del chosen_photos[game_code]
 
-    try:
+    if game_code in cards_on_table:
         del cards_on_table[game_code]
-    except KeyError as e:
-        logging.error(f"Ошибка при удалении из cards_on_table: {e}\n{traceback.format_exc()}")
 
     if game_code in voted_players:
         del voted_players[game_code]
@@ -2613,10 +2711,8 @@ def delete_stuff_for_repeat(game_code):
     if game_code in battle_cards:
         del battle_cards[game_code]
 
-    try:
+    if game_code in all_combined_images:
         del all_combined_images[game_code]
-    except KeyError as e:
-        logging.error(f"Ошибка при удалении из all_combined_images: {e}\n{traceback.format_exc()}")
 
     if game_code in messages_ids:
         del messages_ids[game_code]
@@ -2624,10 +2720,8 @@ def delete_stuff_for_repeat(game_code):
     if game_code in blank_table:
         del blank_table[game_code]
 
-    try:
+    if game_code in players_hand:
         del players_hand[game_code]
-    except KeyError as e:
-        logging.error(f"Ошибка при удалении из players_hand: {e}\n{traceback.format_exc()}")
 
     if game_code in flag_pl_otpravil:
         del flag_pl_otpravil[game_code]
@@ -2656,25 +2750,18 @@ def delete_stuff_for_repeat(game_code):
     if game_code in ids_3_gotovo:
         del ids_3_gotovo[game_code]
 
-    try:
+    if game_code in mozno_nazad_v_menu:
         del mozno_nazad_v_menu[game_code]
-    except KeyError as e:
-        logging.error(f"Ошибка при удалении из mozno_nazad_v_menu: {e}\n{traceback.format_exc()}")
-
     # try:
     #     del flag_double_oplata[game_code]
     # except KeyError as e:
     #     logging.error(f"Ошибка при удалении из flag_double_oplata: {e}\n{traceback.format_exc()}")
 
-    try:
+    if game_code in photo_bar_players:
         del photo_bar_players[game_code]
-    except KeyError as e:
-        logging.error(f"Ошибка при удалении из photo_bar_players: {e}\n{traceback.format_exc()}")
 
-    try:
+    if game_code in message_list_of_players:
         del message_list_of_players[game_code]
-    except KeyError as e:
-        logging.error(f"Ошибка при удалении из message_list_of_players: {e}\n{traceback.format_exc()}")
 
     if game_code in ids_3_otmena:
         del ids_3_otmena[game_code]
@@ -2697,36 +2784,54 @@ def delete_stuff_for_repeat(game_code):
     if game_code in hands_mes_id:
         del hands_mes_id[game_code]
 
+    #     check
+    if game_code in mozno_start_the_game:
+        del mozno_start_the_game[game_code]
+
+    if game_code in nothing_to_send_back_for_mem:
+        del nothing_to_send_back_for_mem[game_code]
+
 def delete_rest_stuff(game_code):
-    del id_and_names[game_code]
-    del all_available_tarifs_memes[game_code]
-    del nazat_tarifs_memes[game_code]
-    del all_available_tarifs_sit[game_code]
-    del nazat_tarifs_sit[game_code]
-    del deck_of_sit_cards[game_code]
-    del trash_sit[game_code]
-    del deck_of_meme_cards[game_code]
-    del trash_memes[game_code]
-
     try:
-        del kolvo_naz_green_buttons[game_code]
+        if game_code in id_and_names:
+            del id_and_names[game_code]
+        if game_code in all_available_tarifs_memes:
+            del all_available_tarifs_memes[game_code]
+        if game_code in nazat_tarifs_memes:
+            del nazat_tarifs_memes[game_code]
+        if game_code in all_available_tarifs_sit:
+            del all_available_tarifs_sit[game_code]
+        if game_code in nazat_tarifs_sit:
+            del nazat_tarifs_sit[game_code]
+        if game_code in deck_of_sit_cards:
+            del deck_of_sit_cards[game_code]
+        if game_code in trash_sit:
+            del trash_sit[game_code]
+        if game_code in deck_of_meme_cards:
+            del deck_of_meme_cards[game_code]
+        if game_code in trash_memes:
+            del trash_memes[game_code]
+
+        if game_code in kolvo_naz_green_buttons:
+            del kolvo_naz_green_buttons[game_code]
+
+        if game_code in kolvo_naz_green_sit:
+            del kolvo_naz_green_sit[game_code]
+
+        if game_code in usernames:
+            del usernames[game_code]
+
+        if game_code in remember_players:
+            del remember_players[game_code]
+
+        if game_code in mozno_play_again:
+            del mozno_play_again[game_code]
+
+
     except Exception as e:
-        logging.error(f"Ошибка при удалении kolvo_naz_green_buttons для игры {game_code}: {e}")
-    try:
-        del kolvo_naz_green_sit[game_code]
-    except Exception as e:
-        logging.error(f"Ошибка при удалении kolvo_naz_green_sit для игры {game_code}: {e}")
+        logging.error(f"Ошибка при удалении оставшихся данных для игры {game_code}: {e}")
 
-    if game_code in usernames:
-        del usernames[game_code]
 
-    if game_code in remember_players:
-        del remember_players[game_code]
-
-    try:
-        del mozno_play_again[game_code]
-    except KeyError as e:
-        logging.error(f"Ошибка при удалении из mozno_play_again: {e}\n{traceback.format_exc()}")
 
 
 # запонимнаем список игроков с прошлого раунда
@@ -2788,6 +2893,7 @@ def repeat(callback_query):
                         markup = types.InlineKeyboardMarkup(row_width=2)
                         callback_data_start = f"start:{game_code}:{message_id_1}"
 
+                        mozno_start_the_game[game_code] = True
                         start_game_button = types.InlineKeyboardButton("Начать игру", callback_data=callback_data_start)
                         callback_data_drop = f"drop:{game_code}:{message_id_1}:{0}"
                         mozno_nazad_v_menu[game_code] = True
@@ -2819,7 +2925,7 @@ def wait_and_check_meme_chose(game_code):
         global stop_waiting_meme_chose
         send_message_to_players(game_code, "У вас есть 60 секунд на выбор мема")
         # print("Waiting for 60 seconds...")
-        for _ in range(10):
+        for _ in range(60):
             if stop_waiting_meme_chose[game_code]:
                 # print("Waiting was interrupted.")
                 return
@@ -2838,7 +2944,7 @@ def wait_and_check_golosov(game_code):
         global stop_waiting_golosov
         send_message_to_players(game_code, "У вас есть 60 секунд на голосование")
         # print("Waiting for 60 seconds...")
-        for _ in range(10):
+        for _ in range(60):
             if stop_waiting_golosov[game_code]:
                 # print("Waiting was interrupted.")
                 return
@@ -2870,7 +2976,8 @@ def players_hand_cards(game_code):
 
     # first_value - максимум голосов для окончания
     # окончание игры
-    if first_value >= 1:
+    # if first_value >= 1:
+    if game_code in players_hand and 'round' in players_hand[game_code] and players_hand[game_code]['round'] >= 2:
         try:
             if first_key in id_and_names[game_code]:
                 pl_name = id_and_names[game_code][first_key]
@@ -2909,10 +3016,10 @@ def players_hand_cards(game_code):
             players_hand[game_code]['round'] += 1  # счётчик раундов
             for pl in players:
                 bot.send_message(pl, f"<b>{players_hand[game_code]['round']} раунд</b>", parse_mode="HTML")
+            time.sleep(2)
             # send_message_to_players(game_code, f"{players_hand[game_code]['round']} раунд")
             send_situation(game_code)
 
-            # send_message_to_players(game_code, "Выберите свой мем:")
             # запоминаем id чтобы потом удалить
             players = active_games[game_code]['players']
             for player_id in players:
@@ -2930,122 +3037,125 @@ def players_hand_cards(game_code):
                 sit = bot.send_message(player_id, "Выберите свой мем:")
             players_hand[game_code]['round'] = 1
 
-        flag = 0
+        the_num_of_a_player = 0
 
         # ждать пока len(all_combined_images[game_code]) == len(players)
         start_time = time.time()
-        while len(all_combined_images[game_code]) < len(players):
-            print(f"{len(all_combined_images[game_code])}")
-            if time.time() - start_time > 20:
-                send_message_to_players(game_code, "Возникла ошибка. Попробуйте запустить игру ещё раз")
+        if game_code in all_combined_images:
+            while len(all_combined_images[game_code]) < len(players):
+                print(f"{len(all_combined_images[game_code])}")
+                if time.time() - start_time > 20:
+                    send_message_to_players(game_code, "Возникла ошибка. Попробуйте запустить игру ещё раз")
 
-                # перевести на главное меню и дропнуть игру
-                a_nu_ka_main_menu_all(game_code)
-
-                try:
-                    delete_stuff_for_repeat(game_code)
-                    delete_rest_stuff(game_code)
-                except Exception as e:
-                    logging.error(f"Ошибка при завершении игры, когда не голосовали {game_code}: {e}")
-
-            time.sleep(1)
-
-
-        # print(f"flag all_combined_images[game_code]: {len(all_combined_images[game_code])}")
-        for player_id in players:
-            combined_image_io = all_combined_images[game_code][flag]
-            # bot.send_message(player_id, str(all_combined_images[game_code].len()))
-            flag += 1
-            additional_parameter_1 = "first_meme"
-            additional_parameter_2 = "second_meme"
-            additional_parameter_3 = "third_meme"
-            additional_parameter_4 = "fourth_meme"
-            additional_parameter_5 = "fifth_meme"
-            additional_parameter_6 = "send_meme_button"
-            callback_data_1 = f"combine:{game_code}:{additional_parameter_1}"
-            callback_data_2 = f"combine:{game_code}:{additional_parameter_2}"
-            callback_data_3 = f"combine:{game_code}:{additional_parameter_3}"
-            callback_data_4 = f"combine:{game_code}:{additional_parameter_4}"
-            callback_data_5 = f"combine:{game_code}:{additional_parameter_5}"
-            callback_send_meme = f"combine:{game_code}:{additional_parameter_6}"
-
-            # cards_on_table[game_code] = {'photos_on_table': [], 'player_ids': []}
-            # у всех пока выбрана 0 карта
-            cards_on_table[game_code][player_id] = 0
-
-            # кнопочки
-            markup = types.InlineKeyboardMarkup(row_width=5)
-            first_meme = types.InlineKeyboardButton("1👆", callback_data=callback_data_1)
-            ''', number=hand_cards[1],  BytesIO=bottom_image_path'''
-            second_meme = types.InlineKeyboardButton("2", callback_data=callback_data_2)
-            third_meme = types.InlineKeyboardButton("3", callback_data=callback_data_3)
-            fourth_meme = types.InlineKeyboardButton("4", callback_data=callback_data_4)
-            fifth_meme = types.InlineKeyboardButton("5", callback_data=callback_data_5)
-            send_meme_button = types.InlineKeyboardButton("Отправить выбранный мем", callback_data=callback_send_meme)
-            markup.add(first_meme, second_meme, third_meme, fourth_meme, fifth_meme)
-            markup.add(send_meme_button)
-
-            # ошибка не в этом
-            # if combined_image_io is None or combined_image_io.getbuffer().nbytes == 0:
-            #     print("Ошибка: изображение пустое или не было загружено корректно")
-            #     return
-
-            try:
-                message = bot.send_photo(player_id, combined_image_io, reply_markup=markup)
-            except:
-                try:
-                    message = bot.send_photo(player_id, combined_image_io, reply_markup=markup)
-                except Exception as e:
-                    logging.error(f"Ошибка при отправке фото игроку {player_id} для игры {game_code}: {e}")
-                    return
-
-            # try:
-            #     bot.send_photo(player_id, combined_image_io)
-            # except Exception as e:
-            #     logging.error(f"Ошибка даже если нет кнопок: {e}")
-            #     return
-
-            if game_code not in hands_mes_id:
-                hands_mes_id[game_code] = {}
-            hands_mes_id[game_code][player_id] = message.message_id
-
-
-            # Устанавливаем таймер на удаление сообщения через 5 секунд
-            if player_id == players[-1]:  # последний игрок
-                # time.sleep(10)
-                wait_thread = threading.Thread(target=wait_and_check_meme_chose(game_code))
-                wait_thread.start()
-                wait_thread.join()
-                # если никто не выбрал мем
-                if (game_code not in flag_pl_otpravil and not stop_waiting_meme_chose[game_code]) or (kolvo_players_that_send_mem[game_code] == 0  and not stop_waiting_meme_chose[game_code]):
-                    bot.delete_message(player_id, message.message_id)
-                    send_message_to_players(game_code, "Никто не выбрал мем, поэтому игра завершилась. Можно начать новый тур!")
                     # перевести на главное меню и дропнуть игру
-                    # if game_code in active_games and player_id == active_games[game_code]['creator']:
-
                     a_nu_ka_main_menu_all(game_code)
 
                     try:
                         delete_stuff_for_repeat(game_code)
                         delete_rest_stuff(game_code)
                     except Exception as e:
-                        logging.error(f"Ошибка при удалении игры {game_code}: {e}")
+                        logging.error(f"Ошибка при завершении игры, когда не голосовали {game_code}: {e}")
 
-                elif len(active_games[game_code]['players']) != kolvo_players_that_send_mem[game_code] and not \
-                stop_waiting_meme_chose[game_code]:
-                    flag_pl_otpravil[game_code] = []
-                    kolvo_players_that_send_mem[game_code] = 0
+                time.sleep(1)
+            print(f"{len(all_combined_images[game_code])}")
 
-                    for pl in players:
-                        # если игрок не вкинул карту в иру
-                        if pl not in players_order[game_code]:
-                            # удаляем его руку с кнопками
-                            bot.delete_message(chat_id=pl, message_id=hands_mes_id[game_code][pl])
-                            bot.send_message(pl, "Ты не успел вкинуть свой мем в игру:(")
 
-                    send_message_to_players(game_code,
-                                            "Среди нас халявщики, которые не успели отправить мем. Голосуем за самых быстрых!")
-                    table(player_id, game_code)
+
+            # print(f"flag all_combined_images[game_code]: {len(all_combined_images[game_code])}")
+            for player_id in players:
+                # bot.send_message(player_id, str(all_combined_images[game_code].len()))
+                combined_image_io = all_combined_images[game_code][the_num_of_a_player]
+                the_num_of_a_player += 1
+                additional_parameter_1 = "first_meme"
+                additional_parameter_2 = "second_meme"
+                additional_parameter_3 = "third_meme"
+                additional_parameter_4 = "fourth_meme"
+                additional_parameter_5 = "fifth_meme"
+                additional_parameter_6 = "send_meme_button"
+                callback_data_1 = f"combine:{game_code}:{additional_parameter_1}"
+                callback_data_2 = f"combine:{game_code}:{additional_parameter_2}"
+                callback_data_3 = f"combine:{game_code}:{additional_parameter_3}"
+                callback_data_4 = f"combine:{game_code}:{additional_parameter_4}"
+                callback_data_5 = f"combine:{game_code}:{additional_parameter_5}"
+                callback_send_meme = f"combine:{game_code}:{additional_parameter_6}"
+
+                # пока можно реагировть на отправку мема
+                nothing_to_send_back_for_mem[game_code] = True
+
+                # cards_on_table[game_code] = {'photos_on_table': [], 'player_ids': []}
+                # у всех пока выбрана 0 карта
+                cards_on_table[game_code][player_id] = 0
+
+                # кнопочки
+                markup = types.InlineKeyboardMarkup(row_width=5)
+                first_meme = types.InlineKeyboardButton("1👆", callback_data=callback_data_1)
+                ''', number=hand_cards[1],  BytesIO=bottom_image_path'''
+                second_meme = types.InlineKeyboardButton("2", callback_data=callback_data_2)
+                third_meme = types.InlineKeyboardButton("3", callback_data=callback_data_3)
+                fourth_meme = types.InlineKeyboardButton("4", callback_data=callback_data_4)
+                fifth_meme = types.InlineKeyboardButton("5", callback_data=callback_data_5)
+                send_meme_button = types.InlineKeyboardButton("Отправить выбранный мем", callback_data=callback_send_meme)
+                markup.add(first_meme, second_meme, third_meme, fourth_meme, fifth_meme)
+                markup.add(send_meme_button)
+
+                # ошибка не в этом
+                # if combined_image_io is None or combined_image_io.getbuffer().nbytes == 0:
+                #     print("Ошибка: изображение пустое или не было загружено корректно")
+                #     return
+
+                try:
+                    message = bot.send_photo(player_id, combined_image_io, reply_markup=markup)
+                except Exception as e:
+                    logging.error(f"Ошибка при отправке фото игроку {player_id} для игры {game_code}: {e}")
+                    return
+
+                # try:
+                #     bot.send_photo(player_id, combined_image_io)
+                # except Exception as e:
+                #     logging.error(f"Ошибка даже если нет кнопок: {e}")
+                #     return
+
+                if game_code not in hands_mes_id:
+                    hands_mes_id[game_code] = {}
+                hands_mes_id[game_code][player_id] = message.message_id
+
+
+                # Устанавливаем таймер на удаление сообщения через 5 секунд
+                if player_id == players[-1]:  # последний игрок
+                    # time.sleep(10)
+                    wait_thread = threading.Thread(target=wait_and_check_meme_chose(game_code))
+                    wait_thread.start()
+                    wait_thread.join()
+                    # если никто не выбрал мем
+                    if (game_code not in flag_pl_otpravil and not stop_waiting_meme_chose[game_code]) or (kolvo_players_that_send_mem[game_code] == 0  and not stop_waiting_meme_chose[game_code]):
+                        bot.delete_message(player_id, message.message_id)
+                        send_message_to_players(game_code, "Никто не выбрал мем, поэтому игра завершилась. Можно начать новый тур!")
+                        # перевести на главное меню и дропнуть игру
+                        # if game_code in active_games and player_id == active_games[game_code]['creator']:
+
+                        a_nu_ka_main_menu_all(game_code)
+
+                        try:
+                            delete_stuff_for_repeat(game_code)
+                            delete_rest_stuff(game_code)
+                        except Exception as e:
+                            logging.error(f"Ошибка при удалении игры {game_code}: {e}")
+
+                    elif len(active_games[game_code]['players']) != kolvo_players_that_send_mem[game_code] and not \
+                    stop_waiting_meme_chose[game_code]:
+                        flag_pl_otpravil[game_code] = []
+                        kolvo_players_that_send_mem[game_code] = 0
+
+                        for pl in players:
+                            # если игрок не вкинул карту в иру
+                            if pl not in players_order[game_code]:
+                                # удаляем его руку с кнопками
+                                bot.delete_message(chat_id=pl, message_id=hands_mes_id[game_code][pl])
+                                bot.send_message(pl, "Ты не успел вкинуть свой мем в игру:(")
+
+                        send_message_to_players(game_code,
+                                                "Среди нас халявщики, которые не успели отправить мем. Голосуем за самых быстрых!")
+                        table(player_id, game_code)
 
 
 
