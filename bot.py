@@ -1452,18 +1452,30 @@ except Exception as e:
 
 # корона
 try:
-    crown_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/crown.png"
+    # crown_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/crown.png"
+    crown_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/tBkC/sZCCxzX7J"
     crown_response = requests.get(crown_url)
     crown = Image.open(BytesIO(crown_response.content))
+
+    print(crown.width)
+    print(crown.height)
+
 except Exception as e:
     logging.error(f"Ошибка при загрузке короны: {e}")
     crown = None
 
+
+
+
+
 # звезда
 try:
-    star_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/star.png"
+    # star_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/Fu4g/MPnSu7KQs/star.png"
+    star_url = "https://thumb.cloud.mail.ru/weblink/thumb/xw1/WUCf/QBR5RRtMY"
     star_response = requests.get(star_url)
     star = Image.open(BytesIO(star_response.content))
+    print(star.width)
+    print(star.height)
 except Exception as e:
     logging.error(f"Ошибка при загрузке звезды: {e}")
     star = None
@@ -1486,6 +1498,7 @@ def insert_image_to_main(image, position, ad_param):
                 main_image = main_image.convert('RGBA')
             main_image.paste(star, position, mask=star)
         else:  # crown
+
             if main_image.mode != 'RGBA':
                 main_image = main_image.convert('RGBA')
 
@@ -1778,12 +1791,22 @@ def progolosoval(player_id, game_code, photos_per_row, kolvo_empty, message_idd,
                             znak = 1
 
                     if znak == 1:
-                        try: # удаляем таймер
-                            bot.delete_message(player_id, message_ids_timer_send_votes[game_code][player_id])
-                        except Exception as e:
-                            logging.error(
-                                f"Ошибка при удалении сообщения в Ваш голос учтён. для игры {game_code}: {e}")
-                        bot.send_message(player_id, "Ваш голос учтён. Посмотрим, что скажут другие игроки 🤔")
+                        # try: # удаляем таймер
+                        #     bot.delete_message(player_id, message_ids_timer_send_votes[game_code][player_id])
+                        # except Exception as e:
+                        #     logging.error(
+                        #         f"Ошибка при удалении сообщения в Ваш голос учтён. для игры {game_code}: {e}")
+
+                        if game_code not in message_ids_timer_send_votes_after_sending:
+                            message_ids_timer_send_votes_after_sending[game_code] = {}
+
+                        bot.edit_message_text(chat_id=player_id,
+                                              message_id=message_ids_timer_send_votes[game_code][player_id],
+                                              text=f"Все игроки отправили мемы. Выбери лучший!", parse_mode="HTML")
+
+                        message = bot.send_message(player_id, "Твой голос учтён! Ждём других…")
+                        message_ids_timer_send_votes_after_sending[game_code][player_id] = message.message_id
+
                         with message_list_lock:
                             # добавляем id сообщения
                             if game_code not in messages_ids:
@@ -1829,7 +1852,17 @@ def progolosoval(player_id, game_code, photos_per_row, kolvo_empty, message_idd,
             try:
                 # can_vote[game_code] = False
                 del voted_players[game_code]
+
+                try:  # удаляем таймер
+                    bot.edit_message_text(chat_id=player_id,
+                                          message_id=message_ids_timer_send_votes_after_sending[game_code][
+                                              player_id],
+                                          text=f"Твой голос учтён!", parse_mode="HTML")
+                except:
+                    pass
+
                 send_message_to_players(game_code, "Все игроки проголосовали! А вот и рейтинг мемолюбов:")
+
                 progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty)
             except Exception as e:
                 logging.error(f"Ошибка при завершении голосования для игры {game_code}: {e}")
@@ -1908,15 +1941,21 @@ def progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty):
         new_top = insert_image_to_main(whole_picture, (x, y), "sun")
 
         # звезды
-        x = 232
+        # x = 232
+        x = 220
         x_initial = x
-        y = 665
+        # y = 675 #new
+        # y = 665 #old
         com_star = new_top
 
         if kolvo_buttons == 4:
             y = 658
             for num in range(kolvo_buttons):
-                kolvo_votes = cards_on_table[game_code]['photos_on_table'][num + 1][2]
+                # kolvo_votes = cards_on_table[game_code]['photos_on_table'][num + 1][2]
+                if num%2 == 0:
+                    kolvo_votes = 2
+                else:
+                    kolvo_votes = 1
                 for vote in range(kolvo_votes):
                     # for vote in range(3):
                     com_star = insert_image_to_main(com_star, (x, y), "star")
@@ -1929,7 +1968,8 @@ def progolosoval_prt_2(game_code, kolvo_buttons, photos_per_row, kolvo_empty):
                 if num <= 3:
                     y = 658
                 elif num == 4:
-                    x = 232
+                    # x = 232
+                    x = 220
                     x_initial = x
                     y = 875
                 else:
@@ -2436,8 +2476,14 @@ def combine_callback_handler(callback_query):
                     logging.error(
                         f"Ошибка при удалении сообщения в combine_callback_handler для игры {game_code}: {e}")
 
-                # запоминаем id чтобы потом удалить
-                sit = bot.send_message(player_id, "Вы отправили этот мем в игру. Дождёмся других игроков")
+                # присылаем новый таймер
+
+                if game_code not in message_ids_timer_send_memes_after_sending:
+                    message_ids_timer_send_memes_after_sending[game_code] = {}
+
+                message = bot.send_message(player_id, "Ты отправил этот мем. Ждём других…")
+                message_ids_timer_send_memes_after_sending[game_code][player_id] = message.message_id
+
 
                 chosen_mem_number = cards_on_table[game_code][player_id]
                 chosen_photo = BytesIO(photo_bar_players[game_code][player_id][chosen_mem_number])
@@ -2464,7 +2510,19 @@ def combine_callback_handler(callback_query):
                 players = active_games[game_code]['players']
                 if len(active_games[game_code]['players']) == kolvo_players_that_send_mem[game_code]:
                     nothing_to_send_back_for_mem[game_code] = False
-                    send_message_to_players(game_code, "Все игроки отправили мемы. Время выбирать самый смешной!")
+                    try:  # удаляем таймер
+                        bot.edit_message_text(chat_id=player_id,
+                                              message_id=message_ids_timer_send_memes_after_sending[game_code][
+                                                  player_id],
+                                              text=f"Ты отправил этот мем", parse_mode="HTML")
+                        # bot.delete_message(player_id, message_ids_timer_send_memes_after_sending[game_code][player_id])
+                    except:
+                        pass
+                    if game_code not in message_ids_timer_send_votes:
+                        message_ids_timer_send_votes[game_code] = {}
+                    for player_id in players:
+                        message = bot.send_message(player_id, "Все игроки отправили мемы. Выбери лучший!")
+                        message_ids_timer_send_votes[game_code][player_id] = message.message_id
                     table(player_id, game_code)
 
         else:  # игрок пока выбирает мем
@@ -2736,6 +2794,15 @@ def delete_stuff_for_repeat(game_code):
     if game_code in message_ids_timer_send_memes:
         del message_ids_timer_send_memes[game_code]
 
+    if game_code in message_ids_timer_send_memes_after_sending:
+        del message_ids_timer_send_memes_after_sending[game_code]
+
+    if game_code in message_ids_timer_send_votes:
+        del message_ids_timer_send_votes[game_code]
+
+    if game_code in message_ids_timer_send_votes_after_sending:
+        del message_ids_timer_send_votes_after_sending[game_code]
+
     if game_code in rating:
         del rating[game_code]
 
@@ -2964,33 +3031,46 @@ from telegram.ext import Updater, CallbackContext, CallbackQueryHandler
 
 
 message_ids_timer_send_memes = {}
+message_ids_timer_send_memes_after_sending = {}
 message_ids_timer_send_votes = {}
+message_ids_timer_send_votes_after_sending = {}
 def wait_and_check_meme_chose(game_code):
     try:
         global stop_waiting_meme_chose
         global message_ids_timer_send_memes
 
-        if game_code not in message_ids_timer_send_memes:
-            message_ids_timer_send_memes[game_code] = {}
-
         players = active_games[game_code]['players']
-        initial_message = "У вас есть <b>60</b> секунд на выбор мема"
-
-        for player_id in players:
-            message = bot.send_message(player_id, initial_message, parse_mode="HTML")
-            message_ids_timer_send_memes[game_code][player_id] = message.message_id
 
         for seconds_left in range(60, 0, -1):
             if stop_waiting_meme_chose[game_code]: # print("Waiting was interrupted.")
                 return
+            last_digit = seconds_left % 10
+            if last_digit == 1:
+                updated_message = f"Выбери свой мем! Осталось <b>{seconds_left}</b> секунда"
+                updated_message_for_all = f"Ты отправил этот мем. Ждём других… <b>{seconds_left}</b> секунда"
+            elif last_digit == 2 or last_digit == 3 or last_digit == 4:
+                updated_message = f"Выбери свой мем! Осталось <b>{seconds_left}</b> секунды"
+                updated_message_for_all = f"Ты отправил этот мем. Ждём других… <b>{seconds_left}</b> секунды"
+            else:
+                updated_message = f"Выбери свой мем! Осталось <b>{seconds_left}</b> секунд"
+                updated_message_for_all = f"Ты отправил этот мем. Ждём других… <b>{seconds_left}</b> секунд"
+            try:
+                if len(active_games[game_code]['players']) == kolvo_players_that_send_mem[game_code]:
+                    updated_message_for_all = f"Ты отправил этот мем"
+            except:
+                pass
 
-            if seconds_left != 60:
-                updated_message = f"У вас есть <b>{seconds_left}</b> секунд на выбор мема"
-                for player_id in players:
-                    try:
+            for player_id in players:
+                try:
+                    # личный таймер
+                    if game_code in flag_pl_otpravil and player_id in flag_pl_otpravil[game_code]:
+                        bot.edit_message_text(chat_id=player_id, message_id=message_ids_timer_send_memes_after_sending[game_code][player_id], text=updated_message_for_all, parse_mode="HTML")
+                    else:
                         bot.edit_message_text(chat_id=player_id, message_id=message_ids_timer_send_memes[game_code][player_id], text=updated_message, parse_mode="HTML")
-                    except:
-                        pass
+                    # общий таймер
+                except:
+                    pass
+
 
             time.sleep(1)
     except Exception as e:
@@ -3002,27 +3082,50 @@ def wait_and_check_golosov(game_code):
         global stop_waiting_golosov
         global message_ids_timer_send_votes
 
-        if game_code not in message_ids_timer_send_votes:
-            message_ids_timer_send_votes[game_code] = {}
-
         players = active_games[game_code]['players']
-        initial_message = "У вас есть <b>60</b> секунд на выбор мема"
-
-        for player_id in players:
-            message = bot.send_message(player_id, initial_message, parse_mode="HTML")
-            message_ids_timer_send_votes[game_code][player_id] = message.message_id
 
         for seconds_left in range(60, 0, -1):
             if stop_waiting_golosov[game_code]:
                 return
+            last_digit = seconds_left % 10
 
-            if seconds_left != 60:
-                updated_message = f"У вас есть <b>{seconds_left}</b> секунд на выбор мема"
-                for player_id in players:
-                    try:
+            if last_digit == 1:
+                updated_message = f"Все игроки отправили мемы. Выбери лучший! <b>{seconds_left}</b> секунда"
+                updated_message_halavshik = f"Среди нас халявщики, которые не успели отправить мем. Голосуем за самых быстрых! <b>{seconds_left}</b> секунда"
+                updated_message_for_all = f"Твой голос учтён! Ждём других… <b>{seconds_left}</b> секунда"
+            elif last_digit == 2 or last_digit == 3 or last_digit == 4:
+                updated_message = f"Все игроки отправили мемы. Выбери лучший! <b>{seconds_left}</b> секунды"
+                updated_message_halavshik = f"Среди нас халявщики, которые не успели отправить мем. Голосуем за самых быстрых! <b>{seconds_left}</b> секунды"
+                updated_message_for_all = f"Твой голос учтён! Ждём других… <b>{seconds_left}</b> секунды"
+            else:
+                updated_message = f"Все игроки отправили мемы. Выбери лучший! <b>{seconds_left}</b> секунд"
+                updated_message_halavshik = f"Среди нас халявщики, которые не успели отправить мем. Голосуем за самых быстрых! <b>{seconds_left}</b> секунд"
+                updated_message_for_all = f"Твой голос учтён! Ждём других… <b>{seconds_left}</b> секунд"
+
+
+            for player_id in players:
+                try:
+                    # халявщики
+                    # if len(active_games[game_code]['players']) != kolvo_players_that_send_mem[game_code] and not \
+                    #     stop_waiting_meme_chose[game_code]:
+                    #     bot.edit_message_text(chat_id=player_id,
+                    #                           message_id=message_ids_timer_send_votes[game_code][player_id],
+                    #                           text=updated_message_halavshik, parse_mode="HTML")
+                    # окончание халявщиков
+                    # окончание все проголосовали
+                    # if game_code in flag_vse_progolos and flag_vse_progolos[game_code]:
+                    if game_code in voted_players and len(active_games[game_code]['players']) == len(voted_players[game_code]):
+                        bot.edit_message_text(chat_id=player_id,
+                                              message_id=message_ids_timer_send_votes_after_sending[game_code][player_id],
+                                              text=f"Твой голос учтён!", parse_mode="HTML")
+                    # общий таймер, когда уже отправил голос
+                    elif game_code in voted_players and player_id in voted_players[game_code]:
+                        bot.edit_message_text(chat_id=player_id, message_id=message_ids_timer_send_votes_after_sending[game_code][player_id], text=updated_message_for_all, parse_mode="HTML")
+                    else: # личный таймер
                         bot.edit_message_text(chat_id=player_id, message_id=message_ids_timer_send_votes[game_code][player_id], text=updated_message, parse_mode="HTML")
-                    except:
-                        pass
+
+                except:
+                    pass
             time.sleep(1)
 
     except Exception as e:
@@ -3043,22 +3146,39 @@ def players_hand_cards(game_code):
     players = active_games[game_code]['players']
 
     # если не набран максимум очков
-    first_key, first_value = next(iter(rating[game_code].items()))
+    # first_key, first_value = next(iter(rating[game_code].items()))
 
     # окончание игры
     # количество раундов с 2 на 5 поменять
     if game_code in players_hand and 'round' in players_hand[game_code] and players_hand[game_code]['round'] >= 2:
         try:
-            if first_key in id_and_names[game_code]:
-                pl_name = id_and_names[game_code][first_key]
+            max_score = max(rating[game_code].values())  # находим максимальное количество очков
+            winners = [pl_id for pl_id, score in rating[game_code].items() if
+                       score == max_score]  # список всех победителей
+
+            # Формируем строку с именами победителей
+            if len(winners) > 1:
+                winner_names = ', '.join(
+                    [id_and_names[game_code][pl_id] if pl_id in id_and_names[game_code] else "bot" for pl_id in
+                     winners])
+                winner_message = f"Игра окончена. Победители: <b>{winner_names}</b>! 🎉"
             else:
-                pl_name = "bot"
+                winner_name = id_and_names[game_code][winners[0]] if winners[0] in id_and_names[game_code] else "bot"
+                winner_message = f"Игра окончена, Победитель: <b>{winner_name}</b>! 🎉"
+
+            #
+            # if first_key in id_and_names[game_code]:
+            #     pl_name = id_and_names[game_code][first_key]
+            # else:
+            #     pl_name = "bot"
             # делаем игру неактивной
             active_games[game_code]['game_started'] = False
-            for player_id in players:
-                bot.send_message(player_id, f"Игра окончена, Победитель <b>{pl_name}</b>!🎉", parse_mode="HTML")
-            # предложение сыграть ещё
 
+            for player_id in players:
+                bot.send_message(player_id, winner_message, parse_mode="HTML")
+
+
+            # предложение сыграть ещё
 
             markup = types.InlineKeyboardMarkup(row_width=2)
             callback_data_repeat = f"repeat:{game_code}"
@@ -3069,7 +3189,7 @@ def players_hand_cards(game_code):
             mozno_play_again[game_code] = {}
             for player_id in players:
                 mozno_play_again[game_code][player_id] = True
-                bot.send_message(player_id, text="Ещё партеечку?😏", reply_markup=markup)
+                bot.send_message(player_id, text="Ещё партеечку? 😏", reply_markup=markup)
         except Exception as e:
             logging.error(f"Ошибка при завершении игры {game_code}: {e}: {traceback.format_exc()}")
 
@@ -3085,26 +3205,36 @@ def players_hand_cards(game_code):
             flag_vse_progolos[game_code] = False
             players_hand[game_code]['round'] += 1  # счётчик раундов
             for pl in players:
-                bot.send_message(pl, f"<b>{players_hand[game_code]['round']} раунд</b>", parse_mode="HTML")
+                bot.send_message(pl, f"<b>Раунд {players_hand[game_code]['round']} из 5</b>", parse_mode="HTML")
             # time.sleep(2)
             # send_message_to_players(game_code, f"{players_hand[game_code]['round']} раунд")
             send_situation(game_code)
 
             # запоминаем id чтобы потом удалить
             players = active_games[game_code]['players']
+            # отправляем сообщение выбери свой мем
+
+            # таймер
+            if game_code not in message_ids_timer_send_memes:
+                message_ids_timer_send_memes[game_code] = {}
             for player_id in players:
-                sit = bot.send_message(player_id, "Выберите свой мем:")
+                message = bot.send_message(player_id, "Выбери свой мем!")
+                message_ids_timer_send_memes[game_code][player_id] = message.message_id
 
             # в бар надо добавить элемент мем и бар(мини фотки)
         else:  # 1 раунд
             for pl in players:
-                bot.send_message(pl, f"<b>1 раунд</b>", parse_mode="HTML")
+                bot.send_message(pl, f"<b>Раунд 1 из 5</b>", parse_mode="HTML")
             # send_message_to_players(game_code, "1 раунд")
             send_situation(game_code)
-            # send_message_to_players(game_code, "Выберите свой мем:")
             players = active_games[game_code]['players']
+
+            # таймер
+            if game_code not in message_ids_timer_send_memes:
+                message_ids_timer_send_memes[game_code] = {}
             for player_id in players:
-                sit = bot.send_message(player_id, "Выберите свой мем:")
+                message = bot.send_message(player_id, "Выбери свой мем!")
+                message_ids_timer_send_memes[game_code][player_id] = message.message_id
             players_hand[game_code]['round'] = 1
 
         the_num_of_a_player = 0
