@@ -3162,7 +3162,7 @@ def wait_and_check_meme_chose(game_code):
 
         players = active_games[game_code]['players']
 
-        for seconds_left in range(5, 0, -1):
+        for seconds_left in range(60, 0, -1):
 
             if stop_waiting_meme_chose[game_code]: # print("Waiting was interrupted.")
                 return
@@ -3210,7 +3210,7 @@ def wait_and_check_golosov(game_code):
 
         players = active_games[game_code]['players']
 
-        for seconds_left in range(8, 0, -1):
+        for seconds_left in range(60, 0, -1):
             if stop_waiting_golosov[game_code]:
                 return
             last_digit = seconds_left % 10
