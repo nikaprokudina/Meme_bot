@@ -16,14 +16,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 
-import decimal
-import hashlib
-from urllib import parse
+# import decimal
+# import hashlib
+# from urllib import parse
 from collections import OrderedDict
-import datetime
+# import datetime
 import copy
 # import files
-import database
+# import database
 # import payment
 
 bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
@@ -617,7 +617,7 @@ def chose_tarif_meme(callback_query):
 
 
 from datetime import datetime, timedelta
-import database
+
 from telebot import types
 
 #
