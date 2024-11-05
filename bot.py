@@ -26,8 +26,8 @@ import copy
 # import database
 # import payment
 
-bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
-# bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
+# bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
+bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
 
 # Словарь для хранения активных игр
 active_games = {}
@@ -276,13 +276,16 @@ def rules(message):
         bot.delete_message(player_id, message_id)
 
         game_code = -1
-        callback_data_leave = f"menu:{game_code}"
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        back_button = types.InlineKeyboardButton("Назад в меню", callback_data=callback_data_leave)
-        markup.add(back_button)
+        # callback_data_leave = f"menu:{game_code}"
+        # markup = types.InlineKeyboardMarkup(row_width=1)
+        # back_button = types.InlineKeyboardButton("Назад в меню", callback_data=callback_data_leave)
+        # markup.add(back_button)
+
+
         bot.send_message(player_id, f"<b>💥 КАК ИГРАТЬ? 💥</b> \n\n🔹 Раздай <b>всем по 5 карт мемов.</b> \n"
                                     f"🔹 Положи колоды мемов и ситуаций в центре стола.\n"
                                     f"🔹 Стань судьёй на первый раунд!", parse_mode="HTML")
+
 
         bot.send_message(player_id, "<b>🎰 РАУНД ИГРЫ 🎰</b> \n\n"
                                     "<code>1.</code> <b>Судья читает карту ситуации.</b> \n"
@@ -294,6 +297,15 @@ def rules(message):
                                     "<i>Следующий - новый судья на новый раунд.</i>\n"
                                     "<i>Закончилась колода / привезли пиццу? Считайте карты в победных стопках. У кого больше - тот мемолог!</i>",
                          parse_mode="HTML")
+
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        new_game_button = types.InlineKeyboardButton("Новая игра", callback_data="new_game")
+        join_game_button = types.InlineKeyboardButton("Присоединиться к игре", callback_data="join_game")
+        markup.add(new_game_button, join_game_button)
+        bot.send_message(player_id, text="🎲 Приятной игры! 🎲", reply_markup=markup)
+
+
+
 
 
     except Exception as e:
@@ -970,7 +982,7 @@ def podtverdit_choices(callback_query):
 
             # Отправляем ссылку создателю игры
             message_1 = bot.send_message(player_id,
-                                         f"Вы создали новую игру! Поделитесь кодом со своими друзьями: {game_code}")
+                                         f"Вы создали новую игру! Поделитесь кодом со своими друзьями: <code>{game_code}</code>", parse_mode="HTML")
             message_id_1 = message_1.message_id
 
             creator_id = active_games[game_code]['creator']
@@ -1040,7 +1052,9 @@ def drop(callback_query):
             except Exception as e:
                 logging.error(f"Ошибка при удалении данных игры в drop {game_code}: {e}")
     except Exception as e:
-        logging.error(f"Ошибка при удалении игры: {e}")
+        logging.error(f"Ошибка при удалении игры: {e}: {traceback.format_exc()}")
+
+
 
 
 @bot.callback_query_handler(func=lambda message: message.data == 'join_game')
