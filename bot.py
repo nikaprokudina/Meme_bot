@@ -981,8 +981,14 @@ def podtverdit_choices(callback_query):
             generate_sit_links(game_code)
 
             # Отправляем ссылку создателю игры
-            message_1 = bot.send_message(player_id,
-                                         f"Вы создали новую игру в <a href='https://t.me/MemesPartyBot'>боте Мемы Онлайн</a>! Поделитесь кодом со своими друзьями: <code>{game_code}</code>", parse_mode="HTML")
+            message_1 = bot.send_message(
+                player_id,
+                f"Вы создали новую игру в <a href='https://t.me/MemesPartyBot'>боте Мемы Онлайн</a>! Поделитесь кодом со своими друзьями: <code>{game_code}</code>",
+                parse_mode="HTML",
+                disable_web_page_preview=True
+            )
+
+
             message_id_1 = message_1.message_id
 
             creator_id = active_games[game_code]['creator']
