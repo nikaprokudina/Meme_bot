@@ -26,8 +26,8 @@ import copy
 # import database
 # import payment
 
-# bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
-bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
+bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
+# bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
 
 # Словарь для хранения активных игр
 active_games = {}
@@ -982,7 +982,7 @@ def podtverdit_choices(callback_query):
 
             # Отправляем ссылку создателю игры
             message_1 = bot.send_message(player_id,
-                                         f"Вы создали новую игру! Поделитесь кодом со своими друзьями: <code>{game_code}</code>", parse_mode="HTML")
+                                         f"Вы создали новую игру в <a href='https://t.me/MemesPartyBot'>боте Мемы Онлайн</a>! Поделитесь кодом со своими друзьями: <code>{game_code}</code>", parse_mode="HTML")
             message_id_1 = message_1.message_id
 
             creator_id = active_games[game_code]['creator']
