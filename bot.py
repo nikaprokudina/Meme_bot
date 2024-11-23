@@ -14,6 +14,22 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# sql
+import os
+import  psycopg2
+from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def get_db_connection():
+    return psycopg2.connect(
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT")
+    )
 
 
 # import decimal
@@ -26,8 +42,8 @@ import copy
 # import database
 # import payment
 
-bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
-# bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
+# bot = telebot.TeleBot("6227889329:AAHP40wbfEJ0ZWgMCb7tqGBT9DoDtLWfOKY")
+bot = telebot.TeleBot("6478379933:AAG_OaYSRm0vZDIT565vT4aON5v6_oyFtmU") #guy
 
 # Словарь для хранения активных игр
 active_games = {}
@@ -177,8 +193,10 @@ def update_players_message(game_code, new_player_id, creator_name):
 
 def generate_game_code():
     try:
-        code = ''.join(random.choices(string.digits, k=6))
-        return code
+        code = -1
+        while code not in active_games:
+            code = ''.join(random.choices(string.digits, k=6))
+            return code
         # return '000000'
     except Exception as e:
         logging.error(f"Ошибка при генерации кода игры: {e}")
@@ -187,8 +205,35 @@ def generate_game_code():
 # старт: присоединиться к игре или создать новую
 @bot.message_handler(commands=['start'])
 def start(message):
-    # дропаем прошлую игру
     player_id = message.chat.id
+    first_name = message.from_user.first_name
+    last_name = message.from_user.last_name or ""
+    username = message.from_user.username or ""
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT player_id FROM players WHERE player_id = %s", (player_id,))
+        user_exists = cursor.fetchone()
+
+        if not user_exists:
+            cursor.execute(
+                "INSERT INTO players (player_id, first_name, last_name, username) VALUES (%s, %s, %s, %s)",
+                (player_id, first_name, last_name, username)
+            )
+            conn.commit()
+            bot.send_message(player_id, "Добро пожаловать! Вы добавлены в базу данных.")
+        else:
+            bot.send_message(player_id, "С возвращением! Вы уже зарегистрированы.")
+
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Ошибка работы с базой данных: {e}")
+        bot.send_message(player_id, "Произошла ошибка. Попробуйте позже.")
+
+    # дропаем прошлую игру
     try:
         # print(str(len(all_players_and_their_codes)))
         if player_id in all_players_and_their_codes and all_players_and_their_codes[player_id] in active_games:
@@ -281,21 +326,23 @@ def rules(message):
         # back_button = types.InlineKeyboardButton("Назад в меню", callback_data=callback_data_leave)
         # markup.add(back_button)
 
+        bot.send_message(player_id, f"<b>💥 КАК ИГРАТЬ? 💥</b>\n\n"
+                                    f"🔹 Один из игроков нажимает <b>«Новая игра»</b> и становится мастером игры. Он настраивает игру, выбирает колоды карт и получает уникальный код, который отправляется другим игрокам.\n"
+                                    f"🔹 Остальные игроки нажимают <b>«Присоединиться»</b> и вводят этот код, чтобы стать участниками текущей партии.\n"
+                                    f"🔹 Когда все готовы, главный игрок запускает игру. Впереди вас ждёт 5 раундов!",
+                         parse_mode="HTML")
 
-        bot.send_message(player_id, f"<b>💥 КАК ИГРАТЬ? 💥</b> \n\n🔹 Раздай <b>всем по 5 карт мемов.</b> \n"
-                                    f"🔹 Положи колоды мемов и ситуаций в центре стола.\n"
-                                    f"🔹 Стань судьёй на первый раунд!", parse_mode="HTML")
+        bot.send_message(player_id, f"<b>🎰 РАУНДЫ В ИГРЕ 🎰</b>\n\n"
+                                    f"<code>1.</code> <b>В начале раунда</b> бот отправляет общую карту с ситуацией всем игрокам.\n"
+                                    f"<code>2.</code> <b>Все игроки</b> выбирают мем из своей руки, который лучше всего подходит к ситуации, и отправляют его.\n"
+                                    f"<code>3.</code> Когда мемы отправлены, <b>игроки голосуют</b> за лучший мем.\n"
+                                    f"<code>4.</code> Игроки, чьи мемы были выбраны, получают победные очки. После голосования бот обновляет рейтинг игроков.\n"
+                                    f"<code>5.</code> В новом раунде игрокам в руку добавляется по 1 карте, и игра продолжается!",
+                         parse_mode="HTML")
 
-
-        bot.send_message(player_id, "<b>🎰 РАУНД ИГРЫ 🎰</b> \n\n"
-                                    "<code>1.</code> <b>Судья читает карту ситуации.</b> \n"
-                                    "<code>2.</code> <b>Все</b> (кроме судьи) <b>как можно быстрее</b> из карт в руке <b>выкладывают лучший мем</b> в центр стола лицом вниз! \n"
-                                    "<code>3.</code> <b>Судья открывает мемы</b> по-очереди, начиная с верхней карты. Верхняя (сыгранная позже) - открывается рядом с колодой, следующие - под ней (карта, сыгранная первой, окажется дальше всех от колоды).\n"
-                                    "<code>4.</code> <b>Cудья выбирает лучший мем!</b> \n"
-                                    "<code>5.</code> <b>Победитель</b> (чей это был мем) <b>забирает эту карту и все, что выше</b> (сыгранные позже) и кладет перед собой - это его победная стопка карт! \n"
-                                    "<code>6.</code> Все пополняют руку до 6 карт. \n\n"
-                                    "<i>Следующий - новый судья на новый раунд.</i>\n"
-                                    "<i>Закончилась колода / привезли пиццу? Считайте карты в победных стопках. У кого больше - тот мемолог!</i>",
+        bot.send_message(player_id, f"<b>🏆 ФИНАЛЬНЫЙ РЕЙТИНГ И ЗАВЕРШЕНИЕ</b>\n\n"
+                                    f"🔹 После 5 раундов появляется итоговый рейтинг и можно поздравить победителей!\n"
+                                    f"🔹 После завершения игры можно продолжить игру с той же колодой картой, нажав на <b>«Сыграть ещё»</b>. Первый игрок, который сдеалеет это, становится мастером новой игры. А остальные присоединяются через код или кнопку «Сыграть ещё».",
                          parse_mode="HTML")
 
         markup = types.InlineKeyboardMarkup(row_width=1)
@@ -303,14 +350,39 @@ def rules(message):
         join_game_button = types.InlineKeyboardButton("Присоединиться к игре", callback_data="join_game")
         markup.add(new_game_button, join_game_button)
         bot.send_message(player_id, text="🎲 Приятной игры! 🎲", reply_markup=markup)
-
-
-
-
-
     except Exception as e:
         pass
         # logging.error(f"Ошибка в обработчике правил игры: {e}")
+
+@bot.callback_query_handler(func=lambda callback_query: callback_query.data == "join_game")
+def handle_game_code(callback_query):
+    try:
+        chat_id = callback_query.message.chat.id
+        message_id = callback_query.message.message_id
+        bot.delete_message(chat_id, message_id)
+        bot.send_message(chat_id, "Введите код игры:")
+        bot.register_next_step_handler(callback_query.message, process_game_code)
+    except Exception as e:
+        logging.error(f"Ошибка при обработке запроса: {e}")
+
+def process_game_code(message):
+    try:
+        game_code = message.text.strip()
+        chat_id = message.chat.id
+        if game_code in active_games:
+            pl_name = message.from_user.first_name
+            join_existing_game(chat_id, pl_name, game_code)
+        else:
+            markup = types.InlineKeyboardMarkup(row_width=1)
+            new_game_button = types.InlineKeyboardButton("Новая игра", callback_data="new_game")
+            join_game_button = types.InlineKeyboardButton("Присоединиться к игре", callback_data="join_game")
+            rules_button = types.InlineKeyboardButton("Правила игры", callback_data="rules")
+            markup.add(new_game_button, join_game_button, rules_button)
+            bot.send_message(chat_id, f"Игра с кодом «{game_code}» не найдена 😭", reply_markup=markup)
+    except Exception as e:
+        logging.error(f"Ошибка при обработке кода игры: {e}")
+
+
 
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('meme_tarif:'))
@@ -879,6 +951,7 @@ all_players_and_their_codes = {}
 def new_game(message):
     try:
         player_id = message.message.chat.id
+
         # user_id = message.from_user.id
         pl_name = message.from_user.first_name
         game_code = generate_game_code()
@@ -1080,22 +1153,6 @@ def join_game(message):
         pass
         # logging.error(f"Ошибка при создании сообщения ввода кода игры для пользователя: {e}")
 
-
-# чтение текста (код игры)
-@bot.message_handler(content_types=['text'])
-def handle_game_code(message):
-    # если это код
-    try:
-        if len(message.text) == 6 and message.text.isdigit():
-            game_code = message.text
-            chat_id = message.chat.id
-            if game_code in active_games:
-                pl_name = message.from_user.first_name
-                join_existing_game(chat_id, pl_name, game_code)
-            else:
-                bot.send_message(chat_id, f"Игра с кодом {game_code} не найдена.")
-    except Exception as e:
-        logging.error(f"Ошибка при обработке кода игры: {e}")
 
 def a_nu_ka_main_menu(player_id):
     markup = types.InlineKeyboardMarkup(row_width=1)
